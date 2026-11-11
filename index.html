@@ -12,6 +12,7 @@
 <script src="js/supabase.js"></script>
 <script>window.TUTORED_CONFIG = {"supabaseUrl": "https://dxfxnnifyxukuglftwgg.supabase.co", "publishableKey": "sb_publishable_cTGD_64WlPPxzmwe-8O8KA_gcjqc-UD", "lessonFunction": "lesson-link", "storageBucket": "tutor-docs"};</script>
 <script src="js/backend.js"></script>
+<script src="js/resources.js"></script>
 </head>
 <body>
 <style>
@@ -1808,6 +1809,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
             <button role="tab" type="button" class="admin-tab" data-admin-tab="signups" aria-selected="false">Sign-ups <span class="count" data-count="signups">0</span></button>
             <button role="tab" type="button" class="admin-tab" data-admin-tab="verify" aria-selected="false">Tutor verification <span class="count count--warn" data-count="pending">0</span></button>
             <button role="tab" type="button" class="admin-tab" data-admin-tab="messages" aria-selected="false">Messages <span class="count" data-count="newmsg">0</span></button>
+            <button role="tab" type="button" class="admin-tab" data-admin-tab="materials" aria-selected="false">Study materials <span class="count" data-count="materials">0</span></button>
             <button role="tab" type="button" class="admin-tab" data-admin-tab="backend" aria-selected="false">How the backend works</button>
           </div>
         </nav>
@@ -1890,6 +1892,33 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
               <button type="button" class="seg-btn" data-m-filter="all" aria-pressed="false">All</button>
             </div>
             <ul class="msg-list" id="m-list"></ul>
+          </div>
+
+          <!-- ===== Study materials ===== -->
+          <div role="tabpanel" data-admin-panel="materials" hidden>
+            <div class="card">
+              <h2 class="h-card">Publish a past paper, textbook or notes</h2>
+              <p class="card-muted">Students see it under Study packs as soon as it is published. PDF only, up to 50 MB each. Only publish material you have the right to share.</p>
+              <form class="form" id="res-form" novalidate>
+                <div class="field"><label for="res-title">Title</label><input id="res-title" required placeholder="e.g. O/L Mathematics past paper 2023"></div>
+                <div class="field-row">
+                  <div class="field"><label for="res-type">Type</label><select id="res-type"><option value="papers">Past paper</option><option value="textbooks">Textbook</option><option value="notes">Study notes</option></select></div>
+                  <div class="field"><label for="res-subject">Subject</label><input id="res-subject" list="res-subjects" required placeholder="e.g. Maths"><datalist id="res-subjects"><option value="Maths"><option value="Science"><option value="Commerce"><option value="English"><option value="ICT"></datalist></div>
+                </div>
+                <div class="field-row">
+                  <div class="field"><label for="res-level">Level</label><select id="res-level"><option>Grade 6–9</option><option selected>O/L</option><option>A/L</option></select></div>
+                  <div class="field"><label for="res-year">Year <span class="opt">(optional)</span></label><input id="res-year" inputmode="numeric" maxlength="9" placeholder="e.g. 2023"></div>
+                </div>
+                <div class="field"><label for="res-desc">Short description <span class="opt">(optional)</span></label><input id="res-desc" maxlength="160" placeholder="e.g. Paper I and II with marking scheme"></div>
+                <div class="field"><label for="res-file">PDF file</label><input id="res-file" type="file" accept=".pdf,application/pdf" required></div>
+                <button class="btn btn--primary" type="submit">Publish</button>
+                <p class="form-msg" id="res-msg" role="status" aria-live="polite"></p>
+              </form>
+            </div>
+            <div class="card" style="margin-top:20px">
+              <h2 class="h-card">Published materials</h2>
+              <div id="res-list"><p class="empty">Loading…</p></div>
+            </div>
           </div>
 
           <!-- ===== How the backend works ===== -->
@@ -3268,7 +3297,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 
   /* ---------- Study pack catalogue (site content) ---------- */
   // type: "papers" = past papers, "textbooks", "notes" = study notes & practice
-  const PACKS = [
+  let PACKS = [
     // Maths
     { id: "ol-maths-papers", type: "papers", title: "O/L Mathematics past papers", subject: "Maths", level: "O/L", price: 0, desc: "Ten years of papers with marking schemes, sorted by year." },
     { id: "al-cmaths-papers", type: "papers", title: "A/L Combined Maths past papers", subject: "Maths", level: "A/L", price: 0, desc: "Papers I and II by year, with marking schemes." },
@@ -3298,6 +3327,15 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
   ];
   const PACK_TYPES = [["papers", "Past papers"], ["textbooks", "Textbooks"], ["notes", "Study notes"]];
   const PACK_SUBJECTS = ["Maths", "Science", "Commerce", "English", "ICT"];
+  // Live site: study materials are whatever the admins have published.
+  if (X.HOSTED && window.TutorEDResources) {
+    PACKS = [];
+    window.TutorEDResources.onChange((list) => {
+      PACKS = list;
+      list.forEach((p) => { if (p.subject && !PACK_SUBJECTS.includes(p.subject)) PACK_SUBJECTS.push(p.subject); });
+      if (D.id && D.tab === "packs") render();
+    });
+  }
 
   /* ---------- State ---------- */
   const D = {
@@ -3625,9 +3663,9 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
         ${list.length ? `<div class="grid grid-3">${list.map((p) => {
           const have = mine.includes(p.id);
           return `<article class="card resource pack"><div class="pack-top"><span class="tag tag--${p.type}">${esc(typeLabel[p.type])}</span><span class="pack-price">${p.price === 0 ? "Free" : "LKR [Add price]"}</span></div>
-            <h3>${esc(p.title)}</h3><p class="card-muted"><span class="pack-level">${esc(p.level)} · ${esc(p.subject)}</span> ${esc(p.desc)}</p>
+            <h3>${esc(p.title)}</h3><p class="card-muted"><span class="pack-level">${esc(p.level)} · ${esc(p.subject)}${p.year ? " · " + esc(p.year) : ""}</span> ${esc(p.desc)}</p>
             ${have ? `<div class="btn-row"><button class="btn btn--sm btn--primary" type="button" data-pack-download="${p.id}">${p.type === "textbooks" ? "Read" : "Download"}</button><button class="btn btn--sm btn--ghost" type="button" data-pack-remove="${p.id}">Remove</button></div><p class="note-inline" data-pack-note="${p.id}" hidden>Files are added in the live site. In test mode there's nothing to open yet.</p>`
-              : `<button class="btn btn--sm btn--outline" type="button" data-pack-add="${p.id}">${p.price === 0 ? "Add to my packs" : "Get it (test: no payment)"}</button>`}</article>`;
+              : `${p.file ? `<div class="btn-row"><button class="btn btn--sm btn--primary" type="button" data-pack-download="${p.id}">${p.type === "textbooks" ? "Read" : "Download"}</button><button class="btn btn--sm btn--ghost" type="button" data-pack-add="${p.id}">Save to my packs</button></div>` : `<button class="btn btn--sm btn--outline" type="button" data-pack-add="${p.id}">${p.price === 0 ? "Add to my packs" : "Get it (test: no payment)"}</button>`}`}</article>`;
         }).join("")}</div>` : `<div class="card"><p class="empty">${empty}</p></div>`}
         <p class="form-msg" id="dash-flash" role="status" aria-live="polite"></p>`;
     },
@@ -4035,7 +4073,11 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       if (d.packType) { D.packType = d.packType; return render(); }
       if (d.packAdd) return run(() => saveAcct({ packs: [...(D.acct.packs || []), d.packAdd] }).then(() => "Added to your study packs."));
       if (d.packRemove) return run(() => saveAcct({ packs: (D.acct.packs || []).filter((x) => x !== d.packRemove) }).then(() => "Removed from your study packs."));
-      if (d.packDownload) { const n = $(`[data-pack-note="${d.packDownload}"]`); if (n) n.hidden = !n.hidden; return; }
+      if (d.packDownload) {
+        const pk = PACKS.find((x) => x.id === d.packDownload);
+        if (pk && pk.file && window.TutorEDResources) return run(() => window.TutorEDResources.open(pk).then(() => `Opening “${pk.title}” in a new tab.`));
+        const n = $(`[data-pack-note="${d.packDownload}"]`); if (n) n.hidden = !n.hidden; return;
+      }
       if (d.removeSlot) { t.disabled = true; return run(() => removeSlot(d.removeSlot)); }
       if (t.hasAttribute("data-delete-account")) { $("#del-confirm").hidden = false; return; }
       if (t.hasAttribute("data-delete-account-no")) { $("#del-confirm").hidden = true; return; }
