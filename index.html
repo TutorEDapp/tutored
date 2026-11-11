@@ -986,7 +986,7 @@ button.tile:hover { border-color: var(--ink); }
       <li data-session-hide><a href="#signup-student">Sign up</a></li>
       <li data-admin-only hidden><a href="#admin">Admin dashboard</a></li>
       <li data-session-show hidden><a href="#dashboard">My dashboard</a></li>
-      <li data-session-show hidden><a href="#login" data-logout>Log out</a></li>
+      <li data-signed-in hidden><a href="#login" data-logout>Log out</a></li>
     </ul>
   </nav>
 </header>
@@ -2543,6 +2543,7 @@ button.tile:hover { border-color: var(--ink); }
     }
     document.documentElement.toggleAttribute("data-admin", S.isAdmin);
     $$("[data-admin-only]").forEach((el) => (el.hidden = !S.isAdmin));
+    try { updateNav(); } catch (e) {}
   }
 
   /* ---------- Session: which account is logged in on this browser ----------
@@ -2557,8 +2558,11 @@ button.tile:hover { border-color: var(--ink); }
   };
   function updateNav() {
     const on = !!Session.get();
+    // An admin-only login has no student/tutor profile, but is still logged in: hide Log in / Sign up and offer Log out.
+    const signedIn = on || (HOSTED && !!S.uid);
     $$("[data-session-show]").forEach((el) => (el.hidden = !on));
-    $$("[data-session-hide]").forEach((el) => (el.hidden = on));
+    $$("[data-signed-in]").forEach((el) => (el.hidden = !signedIn));
+    $$("[data-session-hide]").forEach((el) => (el.hidden = signedIn));
   }
   function goDashboard(delay = 1100) { setTimeout(() => { location.hash = "dashboard"; }, delay); }
   // Buttons that normally lead to sign-up take people who are already logged in straight to the right dashboard tab.
