@@ -21,7 +21,9 @@
     if (code === "23505") return new Error("Someone just booked that time. Pick another one.");
     if (code === "42501" || /row-level security|permission denied/i.test(msg)) return new Error("You don't have permission to do that. Log in again and retry.");
     if (/already registered|already been registered/i.test(msg)) return new Error("That email already has an account. Log in instead.");
-    if (/email not confirmed/i.test(msg)) return new Error("Confirm your email first. Open the link we sent you, then log in. Check your spam folder if you can't find it.");
+    if (/email not confirmed/i.test(msg)) return new Error("Confirm your email first. Enter the code we emailed you.");
+    if (/token has expired|otp.*(expired|invalid)|invalid.*(otp|token)/i.test(msg)) return new Error("That code is wrong or has expired. Check it, or send a new one.");
+    if (/only request this after (\d+) seconds/i.test(msg)) return new Error("Please wait " + msg.match(/after (\d+) seconds/i)[1] + " seconds before asking for another code.");
     if (/invalid login credentials/i.test(msg)) return new Error("That email and password don't match. Check them and try again.");
     if (/password should be/i.test(msg)) return new Error("Choose a longer password (at least 6 characters).");
     if (/rate limit|too many/i.test(msg)) return new Error("Too many attempts. Wait a minute and try again.");
@@ -189,6 +191,18 @@
       if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) throw new Error("That email already has an account. Log in instead.");
       session = data.session || null;
       return { confirm: !session };
+    },
+    // Checks the code from the confirmation email and logs the person in.
+    async verify(email, code) {
+      let res = await sb.auth.verifyOtp({ email, token: code, type: "email" });
+      if (res.error) { const again = await sb.auth.verifyOtp({ email, token: code, type: "signup" }); if (!again.error) res = again; }
+      if (res.error) throw nice(res.error);
+      session = (res.data && res.data.session) || null;
+      if (!session) throw new Error("That code didn't work. Send a new one and try again.");
+    },
+    async resend(email) {
+      const { error } = await sb.auth.resend({ type: "signup", email, options: { emailRedirectTo: SITE } });
+      if (error) throw nice(error);
     },
     // What the person typed at sign-up (kept with their login until the profile is saved).
     profile() { return (session && session.user && session.user.user_metadata) || null; },
