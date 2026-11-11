@@ -1,0 +1,223 @@
+/* ==========================================================================
+   TutorED hosted back end: connects the site to Supabase.
+   It offers the same small db / user / assets interface the test version used,
+   so the pages and dashboards work unchanged. Only public values live here.
+   ========================================================================== */
+(function () {
+  "use strict";
+  const CFG = window.TUTORED_CONFIG || {};
+  if (!window.supabase || !CFG.supabaseUrl || !CFG.publishableKey) return;
+  // Coming back from an email confirmation link? Note it before the address bar is cleaned up.
+  const hash0 = location.hash || "";
+  window.TutorEDAuthReturn = { ok: /access_token=/.test(hash0), error: /error(_code|_description)?=/.test(hash0) };
+  const sb = window.supabase.createClient(CFG.supabaseUrl, CFG.publishableKey);
+  const SITE = location.origin + location.pathname;
+  const BUCKET = CFG.storageBucket || "tutor-docs";
+  const copy = (o) => JSON.parse(JSON.stringify(o));
+
+  function nice(e, fallback) {
+    const msg = (e && e.message) || "";
+    const code = e && e.code;
+    if (code === "23505") return new Error("Someone just booked that time. Pick another one.");
+    if (code === "42501" || /row-level security|permission denied/i.test(msg)) return new Error("You don't have permission to do that. Log in again and retry.");
+    if (/already registered|already been registered/i.test(msg)) return new Error("That email already has an account. Log in instead.");
+    if (/email not confirmed/i.test(msg)) return new Error("Confirm your email first. Open the link we sent you, then log in. Check your spam folder if you can't find it.");
+    if (/invalid login credentials/i.test(msg)) return new Error("That email and password don't match. Check them and try again.");
+    if (/password should be/i.test(msg)) return new Error("Choose a longer password (at least 6 characters).");
+    if (/rate limit|too many/i.test(msg)) return new Error("Too many attempts. Wait a minute and try again.");
+    if (/failed to fetch|network/i.test(msg)) return new Error("Can't reach the server. Check your connection and try again.");
+    return new Error(msg || fallback || "Something went wrong. Please try again.");
+  }
+
+  /* ---------- identity ---------- */
+  let session = null;
+  const sessionReady = sb.auth.getSession().then(({ data }) => { session = (data && data.session) || null; }).catch(() => {});
+  const uid = () => (session && session.user && session.user.id) || null;
+  sb.auth.onAuthStateChange((_evt, s) => { session = s || null; setTimeout(pokeAll, 0); });
+
+  /* ---------- live data ---------- */
+  const listeners = {}; // collection -> Set of refresh functions
+  const channels = {};
+  function poke(col) { (listeners[col] ? Array.from(listeners[col]) : []).forEach((fn) => { try { fn(); } catch (e) {} }); }
+  function pokeAll() { Object.keys(listeners).forEach(poke); }
+  function listen(col, fn) {
+    if (!listeners[col]) listeners[col] = new Set();
+    listeners[col].add(fn);
+    if (!channels[col]) {
+      try {
+        channels[col] = sb.channel("docs-" + col)
+          .on("postgres_changes", { event: "*", schema: "public", table: "docs", filter: "collection=eq." + col }, () => poke(col))
+          .subscribe();
+      } catch (e) { channels[col] = true; }
+    }
+    return () => listeners[col].delete(fn);
+  }
+  // Safety net in case a live update is missed.
+  setInterval(() => { if (!document.hidden) pokeAll(); }, 30000);
+
+  const snapDoc = (id, data) => ({ id, exists: data != null, data: () => (data == null ? undefined : copy(data)), metadata: { fromCache: false, hasPendingWrites: false } });
+
+  async function fetchRows(col) {
+    await sessionReady;
+    if (!uid()) return [];
+    const { data, error } = await sb.from("docs").select("id,data").eq("collection", col).limit(1000);
+    if (error) throw nice(error);
+    const rows = (data || []).map((r) => ({ id: r.id, data: r.data || {} }));
+    if (col === "bookings") {
+      // Add times other students have booked (no names), so they can't be double-booked.
+      try {
+        const { data: taken } = await sb.rpc("taken_slots");
+        const have = new Set(rows.filter((r) => r.data.status === "confirmed").map((r) => r.data.tutorId + "|" + r.data.start));
+        (taken || []).forEach((t, i) => {
+          if (!have.has(t.tutor_id + "|" + t.start)) rows.push({ id: "taken-" + i, data: { tutorId: t.tutor_id, start: t.start, minutes: t.minutes, status: "confirmed", taken: true } });
+        });
+      } catch (e) {}
+    }
+    return rows;
+  }
+
+  function splitPath(path) { const i = path.indexOf("/"); return [path.slice(0, i), path.slice(i + 1)]; }
+
+  function docRef(path) {
+    const [col, id] = splitPath(path);
+    const read = async () => {
+      await sessionReady;
+      if (!uid()) return snapDoc(id, null);
+      const { data, error } = await sb.from("docs").select("data").eq("collection", col).eq("id", id).maybeSingle();
+      if (error) throw nice(error);
+      return snapDoc(id, data ? data.data || {} : null);
+    };
+    return {
+      id, path,
+      get: read,
+      async set(d) {
+        const { error } = await sb.from("docs").upsert({ collection: col, id, data: copy(d) }, { onConflict: "collection,id" });
+        if (error) throw nice(error);
+        poke(col);
+      },
+      async update(patch) {
+        const cur = await read();
+        if (!cur.exists) throw new Error("That record no longer exists.");
+        const next = cur.data();
+        const merge = (a, b) => { for (const k in b) { if (b[k] && typeof b[k] === "object" && !Array.isArray(b[k]) && a[k] && typeof a[k] === "object" && !Array.isArray(a[k])) merge(a[k], b[k]); else a[k] = b[k]; } };
+        merge(next, copy(patch));
+        const { data, error } = await sb.from("docs").update({ data: next }).eq("collection", col).eq("id", id).select("id");
+        if (error) throw nice(error);
+        if (!data || !data.length) throw new Error("You don't have permission to change that.");
+        poke(col);
+      },
+      async delete() {
+        const { error } = await sb.from("docs").delete().eq("collection", col).eq("id", id);
+        if (error) throw nice(error);
+        poke(col);
+      },
+      onSnapshot(next, onErr) {
+        let alive = true;
+        const run = () => read().then((s) => { if (alive) next(s); }).catch((e) => { if (alive && onErr) onErr(e); });
+        const off = listen(col, run);
+        run();
+        return () => { alive = false; off(); };
+      },
+    };
+  }
+
+  function query(col, filters, order, lim) {
+    const run = async () => {
+      let docs = (await fetchRows(col)).map((r) => snapDoc(r.id, r.data));
+      for (const [f, op, v] of filters) docs = docs.filter((d) => (op === "in" ? v.includes(d.data()[f]) : d.data()[f] === v));
+      if (order) docs.sort((a, b) => String(a.data()[order[0]] ?? "").localeCompare(String(b.data()[order[0]] ?? "")) * (order[1] === "desc" ? -1 : 1));
+      docs = docs.slice(0, lim);
+      return { docs, size: docs.length, empty: !docs.length, metadata: { fromCache: false }, docChanges: () => [] };
+    };
+    const newId = () => (window.crypto && crypto.randomUUID ? crypto.randomUUID() : "id-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+    return {
+      path: col,
+      where: (a, b, c) => query(col, filters.concat([[a, b, c]]), order, lim),
+      orderBy: (a, d) => query(col, filters, [a, d || "asc"], lim),
+      limit: (l) => query(col, filters, order, l),
+      get: run,
+      onSnapshot(next, onErr) {
+        let alive = true;
+        const go = () => run().then((s) => { if (alive) next(s); }).catch((e) => { if (alive && onErr) onErr(e); });
+        const off = listen(col, go);
+        go();
+        return () => { alive = false; off(); };
+      },
+      doc: (id) => docRef(col + "/" + (id || newId())),
+      async add(d) { const r = docRef(col + "/" + newId()); await r.set(d); return r; },
+    };
+  }
+
+  const db = { doc: docRef, collection: (p) => query(p, [], null, 1000) };
+
+  const user = {
+    async id() { await sessionReady; return uid(); },
+    async canEdit() {
+      await sessionReady;
+      if (!uid()) return false;
+      try { const { data } = await sb.rpc("is_admin"); return !!data; } catch (e) { return false; }
+    },
+    async isOwner() { return this.canEdit(); },
+    async me() { await sessionReady; const u = session && session.user; return u ? { id: u.id, name: u.email, email: u.email } : {}; },
+    async profiles() { return {}; },
+  };
+
+  const assets = {
+    async upload(file, opts) {
+      await sessionReady;
+      if (!uid()) throw new Error("Log in before uploading files.");
+      const safe = String(file.name || "file").replace(/[^A-Za-z0-9._-]+/g, "_").slice(-80);
+      const path = uid() + "/" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8) + "-" + safe;
+      const { error } = await sb.storage.from(BUCKET).upload(path, file, { contentType: (opts && opts.type) || file.type, upsert: false });
+      if (error) throw nice(error, "The file couldn't be uploaded.");
+      return { id: path, contentType: (opts && opts.type) || file.type, sizeBytes: file.size };
+    },
+    async delete(id) { const { error } = await sb.storage.from(BUCKET).remove([id]); if (error) throw nice(error); return { deleted: true }; },
+    // Private files: a short-lived link, only for the owner and admins.
+    async url(id) {
+      const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(id, 600);
+      if (error) throw nice(error, "That file couldn't be opened.");
+      return data.signedUrl;
+    },
+  };
+
+  window.TutorEDAuth = {
+    async signUp(email, password, profile) {
+      const { data, error } = await sb.auth.signUp({ email, password, options: { data: profile || {}, emailRedirectTo: SITE } });
+      if (error) throw nice(error);
+      // Supabase hides whether an address is taken: an existing account comes back with no identities.
+      if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) throw new Error("That email already has an account. Log in instead.");
+      session = data.session || null;
+      return { confirm: !session };
+    },
+    // What the person typed at sign-up (kept with their login until the profile is saved).
+    profile() { return (session && session.user && session.user.user_metadata) || null; },
+    // True when new accounts must confirm their email before logging in.
+    async needsConfirm() {
+      try { const r = await fetch(CFG.supabaseUrl + "/auth/v1/settings", { headers: { apikey: CFG.publishableKey } }); const j = await r.json(); return j.mailer_autoconfirm === false; }
+      catch (e) { return false; }
+    },
+    async signIn(email, password) {
+      const { data, error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw nice(error);
+      session = data.session || null;
+    },
+    async signOut() { try { await sb.auth.signOut(); } catch (e) {} session = null; pokeAll(); },
+  };
+
+  // Creates or cancels the Google Meet lesson for a booking (runs on the server).
+  window.TutorEDLesson = async function (bookingId, action) {
+    const { data, error } = await sb.functions.invoke(CFG.lessonFunction || "lesson-link", { body: { bookingId, action: action || "create" } });
+    if (error) {
+      let msg = error.message;
+      try { const body = await error.context.json(); if (body && body.error) msg = body.error; } catch (e) {}
+      throw new Error(msg || "The lesson link couldn't be created.");
+    }
+    if (data && data.error) throw new Error(data.error);
+    poke("bookings");
+    return data || {};
+  };
+
+  window.TutorEDHosted = true;
+  window.claude = { use: async (name) => ({ db, user, assets })[name] || null };
+})();

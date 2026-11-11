@@ -817,6 +817,12 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 .lesson-what .pay-note { color: var(--good); font-weight: 600; font-size: 0.8125rem; }
 .lesson.is-cancelled .pay-note { color: var(--text-muted); }
 
+/* Tutor documents list */
+.doc-list { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 8px; }
+.doc-list li { display: flex; gap: 8px; align-items: center; min-width: 0; font-size: var(--fs-sm); }
+.doc-list li span:last-child { overflow-wrap: anywhere; }
+#docs-card .banner { margin: 0 0 16px; }
+
 </style>
 <a class="skip-link" href="#main">Skip to content</a>
 <div class="test-banner" role="note"><div class="container">
@@ -2306,11 +2312,50 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       if (HOSTED) {
         // Hosted site: the login session decides which account is open.
         if (!S.uid) Session.clear();
-        else if (!Session.get()) { try { const own = await db.doc("signups/" + S.uid).get(); if (own.exists) Session.set(S.uid); } catch (e) {} }
+        else {
+          try { await ensureProfile(); } catch (e) {}
+          if (!Session.get()) { try { const own = await db.doc("signups/" + S.uid).get(); if (own.exists) Session.set(S.uid); } catch (e) {} }
+        }
+        const back = window.TutorEDAuthReturn || {};
+        if (back.error) setTimeout(() => { location.hash = "login"; setTimeout(() => { const m = $("[data-form='login-email'] [data-submit-msg]"); if (m) { m.textContent = "That confirmation link has expired or was already used. Log in, or sign up again to get a new link."; m.classList.add("err"); } }, 300); }, 0);
+        else if (back.ok && S.uid && Session.get()) setTimeout(() => { location.hash = "dashboard"; }, 0);
+        if (Auth.needsConfirm) Auth.needsConfirm().then((need) => { if (need) confirmMode(); });
         $$("[data-tab='google'], [data-tab='phone']").forEach((el) => (el.hidden = true));
       }
     } catch (e) { /* stays disconnected: pages still work as a demo */ }
   })();
+  // Hosted site, after someone confirms their email: save the profile they typed at sign-up.
+  async function ensureProfile() {
+    if (!S.uid || !S.db || !Auth.profile) return;
+    const p = Auth.profile();
+    if (!p || !p.role) return;
+    const ref = S.db.doc("signups/" + S.uid);
+    const own = await ref.get();
+    if (own.exists) return;
+    const me = await S.user.me();
+    const data = { role: p.role === "tutor" ? "tutor" : "student", method: "email", name: p.name || "", email: (me.email || "").toLowerCase() };
+    if (data.role === "tutor") { data.subjects = p.subjects || ""; data.docs = []; } else { data.level = p.level || ""; }
+    await saveSignup(data);
+  }
+  // When emails must be confirmed, documents are uploaded after the first login.
+  function confirmMode() {
+    ["t-id", "t-qual", "t-lang"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.required = false;
+      const wrap = el.closest(".field");
+      if (wrap) wrap.hidden = true;
+    });
+    const step = document.getElementById("t-id") && document.getElementById("t-id").closest("[data-step]");
+    if (step && !step.querySelector("[data-confirm-note]")) {
+      const h = step.querySelector("h2"); if (h) h.textContent = "Step 2: Confirm and submit";
+      const p = step.querySelector("p"); if (p) { p.setAttribute("data-confirm-note", ""); p.textContent = "We'll email you a link to confirm your address. After you log in, upload your ID and qualifications from your dashboard so we can verify you."; }
+      const c = step.querySelector("label.check span"); if (c) c.textContent = "I confirm the documents I upload will be genuine and belong to me.";
+      const b = step.querySelector("button[type=submit]"); if (b) b.textContent = "Create my tutor account";
+    }
+    const nx = $("[data-form='tutor'] [data-next]"); if (nx) nx.textContent = "Continue";
+  }
+
   // Works out who is signed in and whether they are an admin.
   async function identify() {
     if (S.user) {
@@ -2366,14 +2411,16 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     if (!S.uid) throw new Error(HOSTED ? "Log in first, then try again." : "Sign in to claude.ai to save test data.");
   }
   // Hosted site: create the real login for a new account, then carry on as that person.
-  async function hostedSignUp(email, password) {
+  async function hostedSignUp(email, password, profile) {
     await ready;
     if (!S.connected) throw new Error("Can't reach the server right now. Nothing was saved.");
     if (!email) throw new Error("Enter your email address.");
     if (!password || password.length < 8) throw new Error("Choose a password with at least 8 characters.");
-    await Auth.signUp(email, password);
+    const res = await Auth.signUp(email, password, profile);
     await identify();
+    return res; // { confirm: true } when the person must confirm their email first
   }
+  const CONFIRM_MSG = "Almost done. We've sent a confirmation link to your email. Open it to finish creating your account. Check your spam folder if you don't see it.";
 
   async function saveSignup(data) {
     const at = nowIso();
@@ -2430,7 +2477,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
   /* ---------- Form handlers ---------- */
   const handlers = {
     async "student-email"() {
-      if (HOSTED) await hostedSignUp(val("s-email").toLowerCase(), $("#s-pw").value);
+      if (HOSTED) {
+        const r = await hostedSignUp(val("s-email").toLowerCase(), $("#s-pw").value, { role: "student", method: "email", name: val("s-name"), level: val("s-level") });
+        if (r && r.confirm) return CONFIRM_MSG;
+      }
       await needDb();
       const id = await saveSignup({ role: "student", method: "email", name: val("s-name"), email: val("s-email").toLowerCase(), level: val("s-level") });
       Session.set(id); goDashboard();
@@ -2451,7 +2501,8 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       if (method === "google" && !form.dataset.googleOk) throw new Error("Go back to step 1 and tap \"Continue with Google\" first.");
       if (HOSTED) {
         if (method !== "email") throw new Error("Sign up with email for now. Google and phone sign-up are coming soon.");
-        await hostedSignUp(base.email, $("#t-pw").value);
+        const r = await hostedSignUp(base.email, $("#t-pw").value, { role: "tutor", method: "email", name: base.name, subjects: base.subjects });
+        if (r && r.confirm) return CONFIRM_MSG + " After you log in, upload your ID and qualifications from your dashboard.";
       }
       await needDb();
       const idDocs = await uploadFiles($("#t-id"), "id");
@@ -2471,6 +2522,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
         await ready;
         await Auth.signIn(email, $("#l-pw").value);
         await identify();
+        try { await ensureProfile(); } catch (e) {}
         const own = await S.db.doc("signups/" + S.uid).get();
         if (own.exists) { Session.set(S.uid); goDashboard(900); return "Logged in. Opening your dashboard…"; }
         if (S.isAdmin) { Login.refresh(); setTimeout(() => { location.hash = "admin"; }, 900); return "Logged in as admin. Opening the admin dashboard…"; }
@@ -2986,7 +3038,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     catch (err) { if (win) win.close(); alert(err.message || "That file couldn't be opened."); }
   });
 
-  window.TutorEDApp = { HOSTED,  S, ready, Session, esc, fmtDate, fmtDay, friendlyError, clean, nowIso, reduceMotion, initials, updateNav };
+  window.TutorEDApp = { HOSTED, uploadFiles,  S, ready, Session, esc, fmtDate, fmtDay, friendlyError, clean, nowIso, reduceMotion, initials, updateNav };
 
   /* ---------- Boot ---------- */
   // Dashboard script loads after this one; route once it's in place.
@@ -3480,7 +3532,16 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
           <div class="btn-row"><button class="btn btn--primary" type="submit">Save changes</button></div>
           <p class="form-msg" id="dash-flash" role="status" aria-live="polite"></p>
         </form>
-        <div class="card"><h2 class="h-card">Verification documents</h2><p class="card-muted">${(a.docs || []).length} file${(a.docs || []).length === 1 ? "" : "s"} uploaded. ${a.review && a.review.note ? "Note from TutorED: " + esc(a.review.note) : ""}</p></div>
+        <div class="card" id="docs-card"><h2 class="h-card">Verification documents</h2>
+          <p class="card-muted">${(a.docs || []).length} file${(a.docs || []).length === 1 ? "" : "s"} uploaded. ${a.review && a.review.note ? "Note from TutorED: " + esc(a.review.note) : ""}</p>
+          ${(a.docs || []).length ? `<ul class="doc-list">${a.docs.map((d) => `<li><span class="tag">${{ id: "ID", qualification: "Qualification", language: "Language proficiency" }[d.kind] || "Document"}</span> <span>${esc(d.name)}</span></li>`).join("")}</ul>` : `<p class="banner banner--pending" role="note">We can't verify you until you upload your ID and at least one qualification.</p>`}
+          <form class="form" id="doc-form" novalidate>
+            <div class="field-row">
+              <div class="field"><label for="df-kind">Document type</label><select id="df-kind"><option value="id">National ID (NIC) or passport</option><option value="qualification">Qualification</option><option value="language">Language proficiency (optional)</option></select></div>
+              <div class="field"><label for="df-file">Files</label><input id="df-file" type="file" accept=".pdf,.jpg,.jpeg,.png" multiple><span class="hint">PDF, JPG or PNG, up to 5 MB each. Only you and TutorED admins can open them.</span></div>
+            </div>
+            <button class="btn btn--outline btn--sm" type="submit">Upload documents</button>
+          </form></div>
         ${accountExtras()}`;
     },
   };
@@ -3489,6 +3550,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     if (D.role !== "tutor") return "";
     const st = D.acct.status;
     if (st === "approved") return "";
+    if (st === "pending" && !(D.acct.docs || []).length) return `<div class="banner banner--pending" role="note">Upload your ID and qualifications in <button class="link-btn" type="button" data-go-tab="settings">Profile &amp; settings</button> so we can verify you.</div>`;
     const text = {
       pending: "Your profile is waiting for verification. You can add open times now. Students see them once an admin approves you.",
       info_requested: "TutorED needs more information before approving you. Check the note in Profile & settings.",
@@ -3563,6 +3625,17 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     const slots = ((D.tutorDoc && D.tutorDoc.slots) || []).filter((s) => s.id !== slotId);
     await S.db.doc("tutors/" + D.id).update({ slots, updatedAt: nowIso() });
     return "Open time removed.";
+  }
+
+  async function addDocs() {
+    const input = $("#df-file");
+    if (!input || !input.files.length) throw new Error("Choose at least one file first.");
+    const kind = $("#df-kind").value;
+    const added = await X.uploadFiles(input, kind);
+    if (!added) throw new Error("Files can't be stored in this view.");
+    const at = nowIso();
+    await saveAcct({ docs: [...(D.acct.docs || []), ...added], history: [...(D.acct.history || []), { at, action: `Uploaded ${added.length} document${added.length === 1 ? "" : "s"}`, by: D.id }] });
+    return `Uploaded ${added.length} file${added.length === 1 ? "" : "s"}. We'll review them soon.`;
   }
 
   async function saveSettings(form) {
@@ -3663,6 +3736,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       const f = e.target;
       e.preventDefault();
       if (f.id === "slot-form") return run(() => addSlots(f));
+      if (f.id === "doc-form") return run(() => addDocs());
       if (f.id === "dash-settings") { D.settingsDirty = false; return run(() => saveSettings(f)); }
     });
   }
