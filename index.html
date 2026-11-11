@@ -866,6 +866,15 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
   .chat-back { display: inline-flex; }
   .chat-thread { height: 55vh; }
 }
+
+/* Email confirmation code box */
+.otp-dialog { border: 1px solid var(--line); border-radius: 16px; padding: 28px; width: min(440px, calc(100vw - 32px)); background: var(--surface, #fff); color: var(--ink); box-shadow: 0 24px 60px rgba(20,22,31,0.25); }
+.otp-dialog::backdrop { background: rgba(20,22,31,0.55); }
+.otp-dialog h2 { margin: 0; font-size: 1.375rem; }
+.otp-dialog #otp-code { font-size: 1.5rem; letter-spacing: 0.3em; text-align: center; font-variant-numeric: tabular-nums; }
+.otp-dialog .btn-row { justify-content: space-between; }
+.otp-dialog #otp-email { overflow-wrap: anywhere; }
+
 </style>
 <a class="skip-link" href="#main">Skip to content</a>
 <div class="test-banner" role="note"><div class="container">
@@ -2434,7 +2443,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     const step = document.getElementById("t-id") && document.getElementById("t-id").closest("[data-step]");
     if (step && !step.querySelector("[data-confirm-note]")) {
       const h = step.querySelector("h2"); if (h) h.textContent = "Step 2: Confirm and submit";
-      const p = step.querySelector("p"); if (p) { p.setAttribute("data-confirm-note", ""); p.textContent = "We'll email you a link to confirm your address. After you log in, upload your ID and qualifications from your dashboard so we can verify you."; }
+      const p = step.querySelector("p"); if (p) { p.setAttribute("data-confirm-note", ""); p.textContent = "We'll email you a code to confirm your address. After that, upload your ID and qualifications from your dashboard so we can verify you."; }
       const c = step.querySelector("label.check span"); if (c) c.textContent = "I confirm the documents I upload will be genuine and belong to me.";
       const b = step.querySelector("button[type=submit]"); if (b) b.textContent = "Create my tutor account";
     }
@@ -2505,7 +2514,57 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     await identify();
     return res; // { confirm: true } when the person must confirm their email first
   }
-  const CONFIRM_MSG = "Almost done. We've sent a confirmation link to your email. Open it to finish creating your account. Check your spam folder if you don't see it.";
+  const CONFIRM_MSG = "Almost done. We've emailed you a confirmation code. Enter it in the box to finish creating your account.";
+
+  /* ---------- Email code box (hosted site) ---------- */
+  function openOtp(email) {
+    let d = $("#otp-dialog");
+    if (!d) {
+      d = document.createElement("dialog");
+      d.id = "otp-dialog"; d.className = "otp-dialog";
+      d.setAttribute("aria-labelledby", "otp-title");
+      d.innerHTML = `<form class="form" novalidate>
+        <h2 id="otp-title">Check your email</h2>
+        <p class="card-muted">We sent a confirmation code to <strong id="otp-email"></strong>. Enter it below to finish. Check your spam folder if you can't find it.</p>
+        <div class="field"><label for="otp-code">Confirmation code</label>
+          <input id="otp-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" pattern="[0-9]*" required></div>
+        <p class="form-msg" id="otp-msg" role="status" aria-live="polite"></p>
+        <button class="btn btn--primary btn--block btn--lg" type="submit">Confirm and continue</button>
+        <div class="btn-row"><button class="btn btn--ghost" type="button" id="otp-resend">Send a new code</button><button class="btn btn--ghost" type="button" id="otp-close">Close</button></div>
+      </form>`;
+      document.body.appendChild(d);
+      const msg = (t, err) => { const m = $("#otp-msg"); m.textContent = t || ""; m.classList.toggle("err", !!err); };
+      $("#otp-close").addEventListener("click", () => d.close());
+      $("#otp-resend").addEventListener("click", async (e) => {
+        const b = e.currentTarget; b.disabled = true;
+        try { await Auth.resend(d.dataset.email); msg("We've sent a new code. It can take a minute to arrive."); }
+        catch (err) { msg(err.message, true); }
+        setTimeout(() => { b.disabled = false; }, 30000);
+      });
+      $("form", d).addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const code = $("#otp-code").value.replace(/\D/g, "");
+        if (code.length < 6) return msg("Enter the full code from the email.", true);
+        const btn = $("button[type=submit]", d); btn.disabled = true; msg("Checking…");
+        try {
+          await Auth.verify(d.dataset.email, code);
+          await identify();
+          await ensureProfile();
+          const own = await S.db.doc("signups/" + S.uid).get();
+          d.close();
+          if (own.exists) { Session.set(S.uid); location.hash = "dashboard"; }
+          else if (S.isAdmin) location.hash = "admin";
+          else location.hash = "signup-student";
+        } catch (err) { msg(err.message || "That code didn't work. Try again.", true); }
+        btn.disabled = false;
+      });
+    }
+    d.dataset.email = email;
+    $("#otp-email").textContent = email;
+    $("#otp-code").value = ""; $("#otp-msg").textContent = "";
+    if (d.showModal) d.showModal(); else d.setAttribute("open", "");
+    setTimeout(() => $("#otp-code").focus(), 50);
+  }
 
   async function saveSignup(data) {
     const at = nowIso();
@@ -2564,7 +2623,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     async "student-email"() {
       if (HOSTED) {
         const r = await hostedSignUp(val("s-email").toLowerCase(), $("#s-pw").value, { role: "student", method: "email", name: val("s-name"), level: val("s-level") });
-        if (r && r.confirm) return CONFIRM_MSG;
+        if (r && r.confirm) { openOtp(val("s-email").toLowerCase()); return CONFIRM_MSG; }
       }
       await needDb();
       const id = await saveSignup({ role: "student", method: "email", name: val("s-name"), email: val("s-email").toLowerCase(), level: val("s-level") });
@@ -2587,7 +2646,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       if (HOSTED) {
         if (method !== "email") throw new Error("Sign up with email for now. Google and phone sign-up are coming soon.");
         const r = await hostedSignUp(base.email, $("#t-pw").value, { role: "tutor", method: "email", name: base.name, subjects: base.subjects });
-        if (r && r.confirm) return CONFIRM_MSG + " After you log in, upload your ID and qualifications from your dashboard.";
+        if (r && r.confirm) { openOtp(base.email); return CONFIRM_MSG + " After that, upload your ID and qualifications from your dashboard."; }
       }
       await needDb();
       const idDocs = await uploadFiles($("#t-id"), "id");
@@ -2605,7 +2664,14 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       const email = val("l-email").toLowerCase();
       if (HOSTED) {
         await ready;
-        await Auth.signIn(email, $("#l-pw").value);
+        try { await Auth.signIn(email, $("#l-pw").value); }
+        catch (e) {
+          if (!/confirm your email/i.test(e.message || "")) throw e;
+          // Right password, but the address was never confirmed: send a fresh code and ask for it.
+          try { await Auth.resend(email); } catch (e2) {}
+          openOtp(email);
+          throw new Error("Your email isn't confirmed yet. We've sent you a new code. Enter it in the box to continue.");
+        }
         await identify();
         try { await ensureProfile(); } catch (e) {}
         const own = await S.db.doc("signups/" + S.uid).get();
