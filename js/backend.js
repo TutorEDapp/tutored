@@ -9,9 +9,7 @@
   if (!window.supabase || !CFG.supabaseUrl || !CFG.publishableKey) return;
   // Coming back from an email confirmation link? Note it before the address bar is cleaned up.
   const hash0 = location.hash || "";
-  // type=invite (admin invited them) or type=recovery (forgot password): they must choose a password next.
-  const linkType = ((hash0.match(/[#&]type=([a-z_]+)/) || [])[1]) || "";
-  window.TutorEDAuthReturn = { ok: /access_token=/.test(hash0), error: /error(_code|_description)?=/.test(hash0), setPassword: linkType === "invite" || linkType === "recovery", type: linkType };
+  window.TutorEDAuthReturn = { ok: /access_token=/.test(hash0), error: /error(_code|_description)?=/.test(hash0) };
   const sb = window.supabase.createClient(CFG.supabaseUrl, CFG.publishableKey);
   const SITE = location.origin + location.pathname;
   const BUCKET = CFG.storageBucket || "tutor-docs";
@@ -23,7 +21,9 @@
     if (code === "23505") return new Error("Someone just booked that time. Pick another one.");
     if (code === "42501" || /row-level security|permission denied/i.test(msg)) return new Error("You don't have permission to do that. Log in again and retry.");
     if (/already registered|already been registered/i.test(msg)) return new Error("That email already has an account. Log in instead.");
-    if (/email not confirmed/i.test(msg)) return new Error("Confirm your email first. Open the link we sent you, then log in. Check your spam folder if you can't find it.");
+    if (/email not confirmed/i.test(msg)) return new Error("Confirm your email first. Enter the code we emailed you.");
+    if (/token has expired|otp.*(expired|invalid)|invalid.*(otp|token)/i.test(msg)) return new Error("That code is wrong or has expired. Check it, or send a new one.");
+    if (/only request this after (\d+) seconds/i.test(msg)) return new Error("Please wait " + msg.match(/after (\d+) seconds/i)[1] + " seconds before asking for another code.");
     if (/invalid login credentials/i.test(msg)) return new Error("That email and password don't match. Check them and try again.");
     if (/password should be/i.test(msg)) return new Error("Choose a longer password (at least 6 characters).");
     if (/rate limit|too many/i.test(msg)) return new Error("Too many attempts. Wait a minute and try again.");
@@ -192,6 +192,18 @@
       session = data.session || null;
       return { confirm: !session };
     },
+    // Checks the code from the confirmation email and logs the person in.
+    async verify(email, code) {
+      let res = await sb.auth.verifyOtp({ email, token: code, type: "email" });
+      if (res.error) { const again = await sb.auth.verifyOtp({ email, token: code, type: "signup" }); if (!again.error) res = again; }
+      if (res.error) throw nice(res.error);
+      session = (res.data && res.data.session) || null;
+      if (!session) throw new Error("That code didn't work. Send a new one and try again.");
+    },
+    async resend(email) {
+      const { error } = await sb.auth.resend({ type: "signup", email, options: { emailRedirectTo: SITE } });
+      if (error) throw nice(error);
+    },
     // What the person typed at sign-up (kept with their login until the profile is saved).
     profile() { return (session && session.user && session.user.user_metadata) || null; },
     // True when new accounts must confirm their email before logging in.
@@ -205,23 +217,7 @@
       session = data.session || null;
     },
     async signOut() { try { await sb.auth.signOut(); } catch (e) {} session = null; pokeAll(); },
-    // Sets a new password for whoever is signed in (after an invite or reset link, or from the dashboard).
-    async setPassword(password) {
-      await sessionReady;
-      if (!uid()) throw new Error("This link has expired or was already used. Ask for a new one, then try again.");
-      const { error } = await sb.auth.updateUser({ password });
-      if (error) {
-        if (/different from the old/i.test(error.message || "")) throw new Error("That's your current password. Choose a new one.");
-        throw nice(error);
-      }
-    },
-    // Emails a link that signs the person in so they can choose a new password.
-    async sendReset(email) {
-      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: SITE });
-      if (error) throw nice(error);
-    },
   };
-  sb.auth.onAuthStateChange((evt) => { if (evt === "PASSWORD_RECOVERY") window.TutorEDAuthReturn.setPassword = true; });
 
   // Creates or cancels the Google Meet lesson for a booking (runs on the server).
   window.TutorEDLesson = async function (bookingId, action) {
@@ -235,6 +231,62 @@
     poke("bookings");
     return data || {};
   };
+
+  /* ---------- Chat between students and tutors ----------
+     Table chat_messages: one row per message. Supabase security rules let each
+     person see only their own conversations (admins see all). */
+  const chatFns = new Set();
+  let chatChannel = null;
+  function chatPoke() { Array.from(chatFns).forEach((fn) => { try { fn(); } catch (e) {} }); }
+  window.TutorEDChat = {
+    async me() { await sessionReady; return uid(); },
+    async list() {
+      await sessionReady;
+      const me = uid();
+      if (!me) return [];
+      const { data, error } = await sb.from("chat_messages")
+        .select("id,student_id,tutor_id,sender_id,student_name,tutor_name,body,created_at,read_at")
+        .or("student_id.eq." + me + ",tutor_id.eq." + me)
+        .order("created_at", { ascending: true }).limit(2000);
+      if (error) throw nice(error, "Couldn't load your messages.");
+      return data || [];
+    },
+    async send(m) {
+      await sessionReady;
+      const me = uid();
+      if (!me) throw new Error("Log in again to send messages.");
+      const body = String(m.body || "").trim().slice(0, 2000);
+      if (!body) throw new Error("Type a message first.");
+      const { error } = await sb.from("chat_messages").insert({
+        student_id: m.studentId, tutor_id: m.tutorId, sender_id: me,
+        student_name: m.studentName || null, tutor_name: m.tutorName || null, body,
+      });
+      if (error) throw nice(error, "Your message wasn't sent. Try again.");
+      chatPoke();
+    },
+    // Marks every message the other person sent in this conversation as read.
+    async markRead(studentId, tutorId) {
+      await sessionReady;
+      const me = uid();
+      if (!me) return;
+      await sb.from("chat_messages").update({ read_at: new Date().toISOString() })
+        .eq("student_id", studentId).eq("tutor_id", tutorId).neq("sender_id", me).is("read_at", null);
+    },
+    // Calls fn whenever a message arrives or changes. Returns a function to stop.
+    subscribe(fn) {
+      chatFns.add(fn);
+      if (!chatChannel) {
+        try {
+          chatChannel = sb.channel("chat-messages")
+            .on("postgres_changes", { event: "*", schema: "public", table: "chat_messages" }, chatPoke)
+            .subscribe();
+        } catch (e) { chatChannel = true; }
+      }
+      return () => chatFns.delete(fn);
+    },
+  };
+  // Safety net in case a live update is missed.
+  setInterval(() => { if (!document.hidden && chatFns.size) chatPoke(); }, 15000);
 
   window.TutorEDHosted = true;
   window.claude = { use: async (name) => ({ db, user, assets })[name] || null };
