@@ -11,7 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="js/supabase.js"></script>
 <script>window.TUTORED_CONFIG = {"supabaseUrl": "https://dxfxnnifyxukuglftwgg.supabase.co", "publishableKey": "sb_publishable_cTGD_64WlPPxzmwe-8O8KA_gcjqc-UD", "lessonFunction": "lesson-link", "storageBucket": "tutor-docs"};</script>
-<script src="js/backend.js"></script>
+<script src="js/backend.js?v=3"></script>
 <script src="js/resources.js"></script>
 </head>
 <body>
@@ -3102,7 +3102,17 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       if (Session.get() === id) Session.clear();
       A.selected = null;
       setStatus(`Deleted ${nameOf(r)}'s account.`);
-    } catch (e) { setStatus(friendlyError(e).message, true); }
+    } catch (e) {
+      setStatus(friendlyError(e).message, true);
+      const c = $("#su-detail [data-delete-confirm]");
+      if (c) {
+        c.hidden = false;
+        let m = $(".form-msg", c);
+        if (!m) { m = document.createElement("p"); m.className = "form-msg err"; m.setAttribute("role", "alert"); c.appendChild(m); }
+        m.textContent = "Couldn't delete: " + friendlyError(e).message;
+        const y = $("[data-delete-yes]", c); if (y) y.disabled = false;
+      }
+    }
   }
 
   async function toggleMessage(docId, itemId) {
@@ -3231,8 +3241,15 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
         return;
       }
       if (t.dataset.rowDelete) {
-        const rr = A.rows.find((x) => x.id === t.dataset.rowDelete);
-        if (rr && window.confirm("Delete " + nameOf(rr) + "'s account? Their profile, bookings, messages, documents and login are all deleted. This can't be undone.")) { t.disabled = true; deleteSignup(rr.id); }
+        // Open this person's details with the delete confirmation showing (no browser pop-up needed).
+        A.selected = t.dataset.rowDelete; render();
+        let tries = 0;
+        const show = () => {
+          const d = $("#su-detail .detail"), c = d && $("[data-delete-confirm]", d);
+          if (c) { c.hidden = false; d.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" }); }
+          else if (tries++ < 20) setTimeout(show, 100);
+        };
+        setTimeout(show, 100);
         return;
       }
       if (t.dataset.select) { A.selected = t.dataset.select; return render(); }
