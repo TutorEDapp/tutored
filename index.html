@@ -506,6 +506,22 @@ fieldset { border: 0; padding: 0; margin: 0; }
   box-shadow: 0 0 0 2px var(--glow), 0 0 14px 1px var(--glow-soft);
 }
 
+/* Clicked or current menu link: text turns black, an underline slides in, and the link gives a small press */
+.nav-links a, .mobile-menu a {
+  background-image: linear-gradient(var(--ink), var(--ink));
+  background-repeat: no-repeat; background-position: left calc(100% - 5px); background-size: 0 2px;
+  transition: box-shadow .18s ease, background-color .15s, color .15s, border-color .15s, transform .15s, background-size .28s ease;
+}
+.nav-links a:active, .nav-links a.is-picked, .nav-links a[aria-current="page"],
+.mobile-menu a:active, .mobile-menu a.is-picked, .mobile-menu a.is-current {
+  color: var(--ink); font-weight: 700; background-image: linear-gradient(var(--ink), var(--ink)); background-repeat: no-repeat; background-size: calc(100% - 24px) 2px; background-position: 12px calc(100% - 5px);
+}
+.mobile-menu a:active, .mobile-menu a.is-picked, .mobile-menu a.is-current { background-size: calc(100% - 8px) 2px; background-position: 4px calc(100% - 9px); }
+.nav-links a:active, .mobile-menu a:active { transform: scale(0.96); }
+.mobile-menu a.is-picked { animation: menu-pick .32s ease; }
+@keyframes menu-pick { 0% { transform: translateX(0) scale(1); } 40% { transform: translateX(6px) scale(0.98); } 100% { transform: translateX(0) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .mobile-menu a.is-picked { animation: none; } .nav-links a:active, .mobile-menu a:active { transform: none; } }
+
 /* Short reassurance line under a page heading */
 .trust-line { display: flex; align-items: flex-start; gap: 10px; width: fit-content; max-width: 100%; margin: 20px 0 0 !important; padding: 12px 16px; background: var(--white); border: 1px solid var(--line); border-radius: 12px; font-size: var(--fs-sm) !important; font-weight: 600; color: var(--ink) !important; }
 .trust-line svg { width: 22px; height: 22px; flex-shrink: 0; color: var(--success); margin-top: 1px; }
@@ -2171,6 +2187,17 @@ button.tile:hover { border-color: var(--ink); }
     });
   }
 
+  /* ---------- Click feedback on menu links ---------- */
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest && e.target.closest(".mobile-menu a, .nav-links a");
+    if (!a) return;
+    $$(".mobile-menu a.is-picked, .nav-links a.is-picked").forEach((x) => x.classList.remove("is-picked"));
+    a.classList.add("is-picked");
+    window.__menuPick = Date.now();
+    clearTimeout(window.__pickTimer);
+    window.__pickTimer = setTimeout(() => a.classList.remove("is-picked"), 900);
+  });
+
   /* ---------- Mark current page in nav ---------- */
   const page = (location.pathname.split("/").pop() || "index.html").replace(/\.html$/, "") || "index";
   $$("[data-page]").forEach((a) => {
@@ -2407,8 +2434,14 @@ button.tile:hover { border-color: var(--ink); }
     const key = NAV_KEY[section] || section;
     $$("[data-page]").forEach((a) => (a.dataset.page === key ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
     const menu = $("#mobile-menu"), toggle = $(".nav-toggle");
-    if (menu) menu.classList.remove("is-open");
-    if (toggle) toggle.setAttribute("aria-expanded", "false");
+    $$("#mobile-menu a").forEach((a) => a.classList.toggle("is-current", a.getAttribute("href") === "#" + route));
+    const closeMenu = () => {
+      if (menu) menu.classList.remove("is-open");
+      if (toggle) toggle.setAttribute("aria-expanded", "false");
+      $$(".is-picked").forEach((x) => x.classList.remove("is-picked"));
+    };
+    // If a menu link was just clicked, let its feedback show for a moment before the menu folds away.
+    if (window.__menuPick && Date.now() - window.__menuPick < 700 && !reduceMotion) setTimeout(closeMenu, 260); else closeMenu();
     if (section === "signup" && window.TutorED) {
       window.TutorED.selectTab("role", route === "signup-tutor" ? "tutor" : "student");
       const tf = $("form[data-form='tutor']");
