@@ -7,7 +7,11 @@
   "use strict";
   const CFG = window.TUTORED_CONFIG || {};
   if (!window.supabase || !CFG.supabaseUrl || !CFG.publishableKey) return;
+  // Coming back from an email confirmation link? Note it before the address bar is cleaned up.
+  const hash0 = location.hash || "";
+  window.TutorEDAuthReturn = { ok: /access_token=/.test(hash0), error: /error(_code|_description)?=/.test(hash0) };
   const sb = window.supabase.createClient(CFG.supabaseUrl, CFG.publishableKey);
+  const SITE = location.origin + location.pathname;
   const BUCKET = CFG.storageBucket || "tutor-docs";
   const copy = (o) => JSON.parse(JSON.stringify(o));
 
@@ -17,6 +21,7 @@
     if (code === "23505") return new Error("Someone just booked that time. Pick another one.");
     if (code === "42501" || /row-level security|permission denied/i.test(msg)) return new Error("You don't have permission to do that. Log in again and retry.");
     if (/already registered|already been registered/i.test(msg)) return new Error("That email already has an account. Log in instead.");
+    if (/email not confirmed/i.test(msg)) return new Error("Confirm your email first. Open the link we sent you, then log in. Check your spam folder if you can't find it.");
     if (/invalid login credentials/i.test(msg)) return new Error("That email and password don't match. Check them and try again.");
     if (/password should be/i.test(msg)) return new Error("Choose a longer password (at least 6 characters).");
     if (/rate limit|too many/i.test(msg)) return new Error("Too many attempts. Wait a minute and try again.");
@@ -177,11 +182,20 @@
   };
 
   window.TutorEDAuth = {
-    async signUp(email, password) {
-      const { data, error } = await sb.auth.signUp({ email, password });
+    async signUp(email, password, profile) {
+      const { data, error } = await sb.auth.signUp({ email, password, options: { data: profile || {}, emailRedirectTo: SITE } });
       if (error) throw nice(error);
+      // Supabase hides whether an address is taken: an existing account comes back with no identities.
+      if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) throw new Error("That email already has an account. Log in instead.");
       session = data.session || null;
-      if (!session) throw new Error("Check your email to confirm your address, then log in.");
+      return { confirm: !session };
+    },
+    // What the person typed at sign-up (kept with their login until the profile is saved).
+    profile() { return (session && session.user && session.user.user_metadata) || null; },
+    // True when new accounts must confirm their email before logging in.
+    async needsConfirm() {
+      try { const r = await fetch(CFG.supabaseUrl + "/auth/v1/settings", { headers: { apikey: CFG.publishableKey } }); const j = await r.json(); return j.mailer_autoconfirm === false; }
+      catch (e) { return false; }
     },
     async signIn(email, password) {
       const { data, error } = await sb.auth.signInWithPassword({ email, password });
