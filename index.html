@@ -11,7 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="js/supabase.js"></script>
 <script>window.TUTORED_CONFIG = {"supabaseUrl": "https://dxfxnnifyxukuglftwgg.supabase.co", "publishableKey": "sb_publishable_cTGD_64WlPPxzmwe-8O8KA_gcjqc-UD", "lessonFunction": "lesson-link", "storageBucket": "tutor-docs"};</script>
-<script src="js/backend.js?v=3"></script>
+<script src="js/backend.js?v=4"></script>
 <script src="js/resources.js"></script>
 </head>
 <body>
@@ -805,6 +805,57 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 .pack h3 { font-size: 1.0625rem; }
 .pack .btn-row { margin-top: auto; }
 .tutor-card footer .btn-row { gap: 6px; }
+
+/* Tutor card: photo, qualifications, rate and actions */
+.avatar--photo { object-fit: cover; background: var(--surface-2); }
+.tutor-card header { align-items: flex-start; }
+.tutor-card header .avatar { width: 60px; height: 60px; font-size: 1.1rem; }
+.tutor-card header > div { min-width: 0; flex: 1; display: grid; gap: 2px; justify-items: start; }
+.tutor-card .section-label { margin: 0 0 4px; }
+.tutor-quals { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: var(--fs-sm); }
+.tutor-quals li { overflow-wrap: anywhere; }
+.tutor-save { display: flex; justify-content: flex-end; margin-top: -4px; }
+.tutor-shared { border-top: 1px solid var(--line); padding-top: 10px; }
+.photo-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.photo-row .avatar { width: 72px; height: 72px; font-size: 1.3rem; }
+.photo-row > div { display: grid; gap: 4px; min-width: 0; flex: 1; }
+
+/* Tiles you can click */
+button.tile { text-align: left; font: inherit; color: inherit; cursor: pointer; }
+button.tile:hover { border-color: var(--ink); }
+.tile-go { font-size: 0.75rem; font-weight: 600; color: var(--cornflower-deep); }
+.tile--alert { border-color: #f1b4ad; background: var(--bad-bg); }
+.tile--alert .tile-num { color: var(--bad); }
+
+/* Assignments and shared documents */
+.work-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); }
+.work-card, .work-item { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.work-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.work-top h3, .work-top strong { margin: 0; font-size: 1.0625rem; overflow-wrap: anywhere; min-width: 0; }
+.work-meta { color: var(--text-muted); font-size: var(--fs-sm); margin: 0; }
+.work-note { margin: 0; font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.work-card .section-label, .work-item .section-label { margin: 0; }
+.work-files { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.work-files li { display: flex; gap: 8px; align-items: center; min-width: 0; font-size: var(--fs-sm); }
+.work-files li span { overflow-wrap: anywhere; min-width: 0; }
+.work-submit { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 8px; }
+.work-submit .btn { justify-self: start; }
+.work-submit input[type=file], .work-submit input[type=text] { max-width: 100%; min-width: 0; }
+.work-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.work-list > li { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.work-list > li:first-child { padding-top: 4px; }
+.work-list > li:last-child { border-bottom: 0; padding-bottom: 0; }
+.work-stack { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.pill--incomplete { background: var(--bad-bg); color: var(--bad); }
+.pill--marking { background: var(--warn-bg); color: var(--warn); }
+.pill--marked { background: var(--good-bg); color: var(--good); }
+.pill--shared { background: var(--surface-2); color: var(--text-muted); }
+.red-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #d92d20; margin-left: 6px; vertical-align: middle; }
+.student-link { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.student-head { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.cal-chip--due { background: var(--bad-bg); color: var(--bad); }
+.dot--due { background: #d92d20; }
+.cal-legend { flex-wrap: wrap; }
 .pack-filters { display: grid; gap: 14px; }
 .pack-filter-row { display: grid; gap: 8px; }
 .pack-filter-row .section-label { margin: 0; }
@@ -1001,20 +1052,6 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       <li>Mathematics</li><li>Combined Maths</li><li>Science</li><li>Physics</li><li>Chemistry</li><li>Biology</li>
       <li>Accounting</li><li>Business Studies</li><li>Economics</li><li>English</li><li>ICT</li><li>Sinhala</li><li>Tamil</li>
     </ul>
-  </div>
-</section>
-
-<!-- ===== Stat counters ===== -->
-<section class="stats" aria-labelledby="stats-title">
-  <div class="container">
-    <h2 id="stats-title" class="visually-hidden">TutorED in numbers</h2>
-    <div class="stats-grid">
-      <div><span class="stat-num">[Add real number]</span><span class="stat-label">Verified tutors</span></div>
-      <div><span class="stat-num">[Add real number]</span><span class="stat-label">Subjects</span></div>
-      <div><span class="stat-num">[Add real number]</span><span class="stat-label">Lessons booked</span></div>
-      <div><span class="stat-num">[Add real number]</span><span class="stat-label">Study packs</span></div>
-    </div>
-    <p class="stat-note">Replace the placeholders with live figures before launch.</p>
   </div>
 </section>
 
@@ -3364,12 +3401,15 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     unsubs: [], roleUnsubs: [], loaded: false, timer: null, settingsDirty: false,
     flash: "", flashErr: false,
     chat: [], chatPeer: null, chatDraft: "", chatLoaded: false, chatErr: "", chatMobileThread: false,
+    // Homework and documents between a tutor and a student
+    work: [], student: null, workDraft: { title: "", kind: "homework", due: "", note: "" },
+    photoBlob: null, docMsg: "", docErr: false,
   };
 
   function unsubscribe(list) { list.splice(0).forEach((u) => { try { u(); } catch {} }); }
   function reset() {
     unsubscribe(D.unsubs); unsubscribe(D.roleUnsubs);
-    Object.assign(D, { id: null, acct: null, role: null, tab: "overview", tutors: [], tutorDoc: null, bookings: [], loaded: false, settingsDirty: false, flash: "", chat: [], chatPeer: null, chatDraft: "", chatLoaded: false, chatErr: "", chatMobileThread: false });
+    Object.assign(D, { id: null, acct: null, role: null, tab: "overview", tutors: [], tutorDoc: null, bookings: [], loaded: false, settingsDirty: false, flash: "", chat: [], chatPeer: null, chatDraft: "", chatLoaded: false, chatErr: "", chatMobileThread: false, work: [], student: null, photoBlob: null, docMsg: "", docErr: false });
   }
 
   function flash(text, err) { D.flash = text; D.flashErr = !!err; const el = $("#dash-flash"); if (el) { el.textContent = text; el.classList.toggle("err", !!err); } }
@@ -3428,6 +3468,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       D.roleUnsubs.push(S.db.doc("tutors/" + D.id).onSnapshot((snap) => { D.tutorDoc = snap.exists ? snap.data() : null; render(); }, err));
       D.roleUnsubs.push(S.db.collection("bookings").where("tutorId", "==", D.id).limit(1000).onSnapshot((snap) => { D.bookings = snap.docs.map((d) => ({ id: d.id, ...d.data() })); render(); }, err));
     }
+    if (workOn()) D.roleUnsubs.push(S.db.collection("assignments").onSnapshot((snap) => {
+      D.work = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((w) => w.studentId === D.id || w.tutorId === D.id);
+      render();
+    }, err));
     if (chatOn()) {
       const load = () => window.TutorEDChat.list().then((rows) => {
         D.chat = rows; D.chatLoaded = true; D.chatErr = "";
@@ -3446,7 +3490,23 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
   const myLessons = () => D.bookings
     .filter((b) => (D.role === "student" ? b.studentId === D.id : b.tutorId === D.id))
     .sort((a, b) => a.start.localeCompare(b.start));
-  const upcoming = () => myLessons().filter((b) => b.status === "confirmed" && !isPast(b.start));
+  // A lesson counts as over once its end time has passed (not when it starts).
+  const isOver = (b) => Date.parse(b.start) + (b.minutes || 60) * 60000 < Date.now();
+  const upcoming = () => myLessons().filter((b) => b.status === "confirmed" && !isOver(b));
+  // Homework: set by a tutor, handed in by the student, then marked.
+  const workOn = () => !!(X.HOSTED && window.TutorEDClassFiles && D.id);
+  const homework = () => D.work.filter((w) => w.kind === "homework");
+  const overdue = (w) => w.status === "incomplete" && !!w.due && w.due < todayKey();
+  const dueCount = () => homework().filter((w) => w.status === "incomplete").length;
+  const toMark = (studentId) => homework().filter((w) => w.status === "marking" && (!studentId || w.studentId === studentId)).length;
+  const fmtDue = (k) => (k ? fromKey(k).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }) : "No deadline");
+  const photoOk = (u) => /^https:\/\//i.test(u || "");
+  const avatarHtml = (name, photo) => (photoOk(photo)
+    ? `<img class="avatar avatar--photo" src="${esc(photo)}" alt="" loading="lazy">`
+    : `<div class="avatar" aria-hidden="true">${esc(initials(name))}</div>`);
+  const QUAL_FIELDS = [["al", "A/L results", "ds-q-al"], ["degree", "Bachelor's degree", "ds-q-degree"], ["masters", "Master's or higher", "ds-q-masters"], ["other", "Other qualification", "ds-q-other"]];
+  const QUAL_LABEL = { al: "A/L", degree: "Bachelor's", masters: "Master's" };
+  const qualLines = (t) => ((t && t.quals) || []).filter((q) => q && q.text).map((q) => (QUAL_LABEL[q.type] ? QUAL_LABEL[q.type] + ": " : "") + q.text);
   const savedIds = () => (D.acct && D.acct.savedTutors) || [];
   const tutorById = (id) => D.tutors.find((t) => t.id === id);
   const takenKey = (tutorId, start) => `${tutorId}|${start}`;
@@ -3474,7 +3534,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
   /* ====================================================================
      RENDER
      ==================================================================== */
-  const STUDENT_TABS = [["overview", "Overview"], ["calendar", "Calendar"], ["tutors", "My tutors"], ["messages", "Messages"], ["packs", "Study packs"], ["settings", "Account settings"]];
+  const STUDENT_TABS = [["overview", "Overview"], ["calendar", "Calendar"], ["tutors", "My tutors"], ["assignments", "Assignments"], ["messages", "Messages"], ["packs", "Study packs"], ["settings", "Account settings"]];
   const TUTOR_TABS = [["overview", "Overview"], ["calendar", "Calendar"], ["students", "My students"], ["messages", "Messages"], ["settings", "Profile & settings"]];
 
   function renderLoading() {
@@ -3501,10 +3561,14 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     $("#dash-role").innerHTML = `<span class="chip">${roleLabel}</span>${D.acct.sample ? ' <span class="tag tag--sample">Sample</span>' : ""}${D.role === "tutor" ? ` <span class="pill pill--${esc(st)}">${esc({ pending: "Waiting for verification", approved: "Verified", rejected: "Not approved", info_requested: "More info needed" }[st] || st)}</span>` : ""}`;
     $("#dash-admin-note").hidden = !S.isAdmin;
     const tabsEl = $("#dash-tabs");
-    const want = tabs.map(([k, l]) => `<button role="tab" type="button" class="admin-tab" data-dash-tab="${k}" aria-selected="${k === D.tab}" tabindex="${k === D.tab ? 0 : -1}">${l}${k === "calendar" ? ` <span class="count">${upcoming().length}</span>` : ""}${k === "messages" && unreadTotal() ? ` <span class="count count--alert">${unreadTotal()}<span class="visually-hidden"> unread</span></span>` : ""}</button>`).join("");
+    const want = tabs.map(([k, l]) => `<button role="tab" type="button" class="admin-tab" data-dash-tab="${k}" aria-selected="${k === D.tab}" tabindex="${k === D.tab ? 0 : -1}">${l}${k === "calendar" ? ` <span class="count">${upcoming().length}</span>` : ""}${k === "messages" && unreadTotal() ? ` <span class="count count--alert">${unreadTotal()}<span class="visually-hidden"> unread</span></span>` : ""}${k === "assignments" && dueCount() ? ` <span class="count count--alert">${dueCount()}<span class="visually-hidden"> to hand in</span></span>` : ""}${k === "students" && toMark() ? `<span class="red-dot" title="Homework to mark"></span><span class="visually-hidden"> ${toMark()} to mark</span>` : ""}</button>`).join("");
     if (tabsEl.innerHTML !== want) tabsEl.innerHTML = want;
     const panel = $("#dash-panel");
-    if (D.tab === "settings" && D.settingsDirty) return; // don't wipe what they're typing
+    if (D.tab === "settings" && D.settingsDirty) { // don't wipe what they're typing, but keep the documents box current
+      const c = $("#docs-card");
+      if (c && D.role === "tutor") { const h = docsCard(); if (h !== lastDocs) { c.outerHTML = h; lastDocs = h; } }
+      return;
+    }
     const typing = document.activeElement && document.activeElement.id === "chat-input";
     const oldThread = $("#chat-thread");
     const nearBottom = !oldThread || oldThread.scrollHeight - oldThread.scrollTop - oldThread.clientHeight < 80;
@@ -3522,34 +3586,42 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     const l = b.meetLink || "";
     return /^https:\/\//i.test(l) ? l : "";
   }
+  // The Join button switches on 10 minutes before the start and stays on until the lesson ends.
+  const joinOpen = (b) => Date.now() >= Date.parse(b.start) - 10 * 60000 && !isOver(b);
   function joinControl(b, cls) {
+    if (!joinOpen(b)) return `<button class="btn ${cls}" type="button" disabled title="Opens 10 minutes before the lesson starts">Join lesson</button>`;
     const l = linkFor(b);
     if (l) return `<a class="btn ${cls}" href="${esc(l)}" target="_blank" rel="noopener noreferrer">Join lesson<span class="visually-hidden"> (opens in a new tab)</span></a>`;
     return `<button class="btn ${cls}" type="button" data-join="${esc(b.id)}">Join lesson</button>`;
   }
-  const joinHint = (b) => `<p class="note-inline" data-join-note="${esc(b.id)}" hidden>${X.HOSTED ? "Your Google Meet link isn't ready yet. It appears here once it has been created, and it is also in your email invitation." : "In the live site, this opens the Google Meet link created for this lesson."}</p>`;
+  const joinHint = (b) => `${joinOpen(b) ? "" : `<p class="note-inline">Join opens 10 minutes before the lesson starts.</p>`}<p class="note-inline" data-join-note="${esc(b.id)}" hidden>${X.HOSTED ? "Your Google Meet link isn't ready yet. It appears here once it has been created, and it is also in your email invitation." : "In the live site, this opens the Google Meet link created for this lesson."}</p>`;
   function lessonItem(b, opts = {}) {
     const other = D.role === "tutor" ? b.studentName || "Student" : b.tutorName || "Tutor";
     const cancelled = b.status === "cancelled";
-    const past = isPast(b.start);
+    const past = isOver(b);
+    const started = !past && isPast(b.start);
     const isStudent = D.role === "student";
     const payNote = cancelled ? "Payment not released to the tutor"
       : past ? (isStudent ? "Lesson done · tutor paid" : "Lesson done · you're paid")
       : (isStudent ? "Payment held securely until the lesson is done" : "You're paid after the lesson");
     let actions = "";
     if (!cancelled && !past && opts.actions !== false) {
-      actions = `<div class="btn-row">${joinControl(b, "btn--sm btn--primary")}<button class="btn btn--sm btn--ghost danger-text" type="button" data-cancel="${esc(b.id)}">Cancel</button></div>
+      actions = `<div class="btn-row">${joinControl(b, "btn--sm btn--primary")}${started ? "" : `<button class="btn btn--sm btn--ghost danger-text" type="button" data-cancel="${esc(b.id)}">Cancel</button>`}</div>
         ${joinHint(b)}
         <div class="confirm" data-cancel-confirm="${esc(b.id)}" hidden><p><strong>Cancel this lesson?</strong> ${D.role === "tutor" ? "The student is told and refunded." : "Your tutor is told. Refunds follow the refund policy."}</p>
           <div class="btn-row"><button class="btn btn--danger btn--sm" type="button" data-cancel-yes="${esc(b.id)}">Cancel lesson</button><button class="btn btn--outline btn--sm" type="button" data-cancel-no="${esc(b.id)}">Keep it</button></div></div>`;
     }
     return `<li class="lesson${cancelled ? " is-cancelled" : ""}">
       <div class="lesson-when"><strong>${esc(fmtShort(b.start))}</strong><span>${esc(fmtRange(b.start, b.minutes || 60))}</span></div>
-      <div class="lesson-what"><strong>${esc(b.subject || "Lesson")}</strong><span>with ${esc(other)}</span><span class="pay-note">${esc(payNote)}</span>${cancelled ? `<span class="pill pill--rejected">Cancelled${b.cancelledBy ? " by " + esc(b.cancelledBy) : ""}</span>` : past ? `<span class="pill pill--resolved">Done</span>` : `<span class="pill pill--approved">Confirmed</span>`}</div>
+      <div class="lesson-what"><strong>${esc(b.subject || "Lesson")}</strong><span>with ${esc(other)}</span><span class="pay-note">${esc(payNote)}</span>${cancelled ? `<span class="pill pill--rejected">Cancelled${b.cancelledBy ? " by " + esc(b.cancelledBy) : ""}</span>` : past ? `<span class="pill pill--resolved">Done</span>` : started ? `<span class="pill pill--approved">In progress</span>` : `<span class="pill pill--approved">Confirmed</span>`}</div>
       ${actions ? `<div class="lesson-actions">${actions}</div>` : ""}</li>`;
   }
 
-  function tile(n, label, warn) { return `<div class="tile${warn ? " tile--warn" : ""}"><span class="tile-num">${n}</span><span class="tile-label">${esc(label)}</span></div>`; }
+  function tile(n, label, warn, go) {
+    const cls = `tile${warn === "alert" ? " tile--alert" : warn ? " tile--warn" : ""}`;
+    const inner = `<span class="tile-num">${n}</span><span class="tile-label">${esc(label)}</span>`;
+    return go ? `<button type="button" class="${cls}" data-go-tab="${go}">${inner}<span class="tile-go">Open ›</span></button>` : `<div class="${cls}">${inner}</div>`;
+  }
 
   function nextLessonCard() {
     const n = upcoming()[0];
@@ -3572,14 +3644,16 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     for (let i = 0; i < offset; i++) cells.push(`<div class="cal-cell is-blank" aria-hidden="true"></div>`);
     for (let d = 1; d <= daysIn; d++) {
       const k = dayKey(new Date(m.getFullYear(), m.getMonth(), d));
-      const mk = markers[k] || { lessons: [], open: 0 };
+      const mk = markers[k] || { lessons: [], open: 0, due: [] };
+      const due = mk.due || [];
       const chips = mk.lessons.slice(0, 2).map((b) => `<span class="cal-chip cal-chip--lesson">${esc(fmtTime(b.start))} ${esc(b.subject || "")}</span>`).join("")
         + (mk.lessons.length > 2 ? `<span class="cal-more">+${mk.lessons.length - 2} more</span>` : "")
+        + (due.length ? `<span class="cal-chip cal-chip--due">Due: ${esc(due.length === 1 ? due[0].title : due.length + " assignments")}</span>` : "")
         + (mk.open ? `<span class="cal-chip cal-chip--open">${mk.open} open</span>` : "");
-      const label = `${fmtLongDay(k)}: ${mk.lessons.length} lesson${mk.lessons.length === 1 ? "" : "s"}${mk.open ? `, ${mk.open} open time${mk.open === 1 ? "" : "s"}` : ""}`;
+      const label = `${fmtLongDay(k)}: ${mk.lessons.length} lesson${mk.lessons.length === 1 ? "" : "s"}${due.length ? `, ${due.length} assignment${due.length === 1 ? "" : "s"} due` : ""}${mk.open ? `, ${mk.open} open time${mk.open === 1 ? "" : "s"}` : ""}`;
       cells.push(`<button type="button" class="cal-cell${k === D.day ? " is-selected" : ""}${k === todayKey() ? " is-today" : ""}${k < todayKey() ? " is-past" : ""}" data-day="${k}" aria-label="${esc(label)}" aria-pressed="${k === D.day}">
         <span class="cal-num">${d}</span><span class="cal-chips">${chips}</span>
-        <span class="cal-dots" aria-hidden="true">${mk.lessons.length ? '<i class="dot dot--lesson"></i>' : ""}${mk.open ? '<i class="dot dot--open"></i>' : ""}</span></button>`);
+        <span class="cal-dots" aria-hidden="true">${mk.lessons.length ? '<i class="dot dot--lesson"></i>' : ""}${due.length ? '<i class="dot dot--due"></i>' : ""}${mk.open ? '<i class="dot dot--open"></i>' : ""}</span></button>`);
     }
     const title = m.toLocaleDateString(undefined, { month: "long", year: "numeric" });
     return `<div class="cal card">
@@ -3589,7 +3663,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
         <button class="btn btn--ghost btn--sm" type="button" data-today>Today</button></div>
       <div class="cal-grid cal-dow" aria-hidden="true">${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => `<span>${d}</span>`).join("")}</div>
       <div class="cal-grid">${cells.join("")}</div>
-      <div class="cal-legend"><span><i class="dot dot--lesson"></i> Lesson</span><span><i class="dot dot--open"></i> Open time</span></div>
+      <div class="cal-legend"><span><i class="dot dot--lesson"></i> Lesson</span><span><i class="dot dot--due"></i> Assignment due</span><span><i class="dot dot--open"></i> Open time</span></div>
     </div>`;
   }
 
@@ -3601,19 +3675,20 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       const up = upcoming();
       const packs = (D.acct.packs || []).length;
       return `${nextLessonCard()}
-        <div class="tiles">${tile(up.length, "Upcoming lessons")}${tile(savedIds().length, "My tutors")}${tile(packs, "Study packs")}${tile(myLessons().filter((b) => b.status === "confirmed" && isPast(b.start)).length, "Lessons done")}</div>
+        <div class="tiles">${tile(up.length, "Upcoming lessons", false, "calendar")}${tile(savedIds().length, "My tutors", false, "tutors")}${tile(packs, "Study packs", false, "packs")}${tile(dueCount(), "Assignments due", dueCount() ? "alert" : false, "assignments")}${tile(myLessons().filter((b) => b.status === "confirmed" && isOver(b)).length, "Lessons done")}</div>
         <div class="admin-cols">
           <div class="card"><div class="card-head"><h2 class="h-card">Coming up</h2><button class="link-btn" type="button" data-go-tab="calendar">Open calendar</button></div>
             ${up.length ? `<ul class="lessons">${up.slice(0, 4).map((b) => lessonItem(b, { actions: false })).join("")}</ul>` : `<p class="empty">No lessons yet. Book one from your calendar.</p>`}</div>
           <div class="card"><div class="card-head"><h2 class="h-card">My tutors</h2><button class="link-btn" type="button" data-go-tab="tutors">Manage</button></div>
-            ${savedIds().length ? `<ul class="list">${savedIds().map(tutorById).filter(Boolean).map((t) => `<li><div class="avatar" aria-hidden="true">${esc(initials(t.name))}</div><div class="grow"><strong>${esc(t.name)}</strong><small>${esc(t.subjects)}</small></div><button class="btn btn--sm btn--outline" type="button" data-book-with="${esc(t.id)}">Book</button></li>`).join("")}</ul>` : `<p class="empty">You haven't added any tutors yet.</p><button class="btn btn--outline btn--sm" type="button" data-go-tab="tutors">Find a tutor</button>`}</div>
+            ${savedIds().length ? `<ul class="list">${savedIds().map(tutorById).filter(Boolean).map((t) => `<li>${avatarHtml(t.name, t.photo)}<div class="grow"><strong>${esc(t.name)}</strong><small>${esc(t.subjects)}</small></div><button class="btn btn--sm btn--outline" type="button" data-book-with="${esc(t.id)}">Book</button></li>`).join("")}</ul>` : `<p class="empty">You haven't added any tutors yet.</p><button class="btn btn--outline btn--sm" type="button" data-go-tab="tutors">Find a tutor</button>`}</div>
         </div>`;
     },
 
     calendar() {
       const markers = {};
-      const mark = (k) => (markers[k] = markers[k] || { lessons: [], open: 0 });
+      const mark = (k) => (markers[k] = markers[k] || { lessons: [], open: 0, due: [] });
       myLessons().filter((b) => b.status === "confirmed").forEach((b) => mark(keyOfIso(b.start)).lessons.push(b));
+      homework().forEach((w) => { if (w.due && w.status !== "marked") mark(w.due).due.push(w); });
       const open = openSlots();
       open.forEach((s) => mark(keyOfIso(s.start)).open++);
       const dayLessons = myLessons().filter((b) => keyOfIso(b.start) === D.day);
@@ -3626,6 +3701,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
           <div class="card day-panel"><h2 class="h-card">${esc(fmtLongDay(D.day))}</h2>
             <p class="section-label">Your lessons</p>
             ${dayLessons.length ? `<ul class="lessons">${dayLessons.map((b) => lessonItem(b)).join("")}</ul>` : `<p class="empty">No lessons on this day.</p>`}
+            ${dueSection()}
             <p class="section-label">Open times to book</p>
             ${D.day < todayKey() ? `<p class="empty">This day has passed.</p>` : dayOpen.length ? `<ul class="slots">${dayOpen.map((s) => {
               const subs = String(s.tutor.subjects || "Lesson").split(",").map((x) => x.trim()).filter(Boolean);
@@ -3643,14 +3719,19 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       const others = D.tutors.filter((t) => !savedIds().includes(t.id) && (!q || `${t.name} ${t.subjects} ${t.languages}`.toLowerCase().includes(q)));
       const card = (t, isSaved) => {
         const nx = nextOpenFor(t);
-        return `<article class="card tutor-card"><header><div class="avatar" aria-hidden="true">${esc(initials(t.name))}</div><div><h3>${esc(t.name)}</h3><span class="meta">${esc(t.subjects || "")}</span></div></header>
+        const quals = qualLines(t);
+        const shared = D.work.filter((w) => w.kind !== "homework" && w.tutorId === t.id).sort((x, y) => String(y.createdAt || "").localeCompare(String(x.createdAt || "")));
+        const hw = homework().filter((w) => w.tutorId === t.id && w.status === "incomplete").length;
+        return `<article class="card tutor-card"><header>${avatarHtml(t.name, t.photo)}<div><h3>${esc(t.name)}</h3><span class="meta">${esc(t.subjects || "")}</span><span class="chip chip--ok">Verified tutor</span></div></header>
+          <div><p class="section-label">Qualifications</p>${quals.length ? `<ul class="tutor-quals">${quals.map((q) => `<li>${esc(q)}</li>`).join("")}</ul>` : `<p class="meta" style="margin:0">Not added yet.</p>`}</div>
           ${t.bio ? `<p class="meta" style="margin:0">${esc(t.bio)}</p>` : ""}
           <p class="meta" style="margin:0">${t.languages ? esc(t.languages) + " · " : ""}${nx ? "Next open: " + esc(fmtShort(nx.start)) + ", " + esc(fmtTime(nx.start)) : "No open times right now"}</p>
-          <span class="chip chip--ok" style="align-self:flex-start">Verified tutor</span>
+          ${shared.length || hw ? `<div class="tutor-shared">${shared.length ? `<p class="section-label">Documents from ${esc(String(t.name || "your tutor").split(" ")[0])}</p><ul class="work-files">${shared.map((w) => (w.files || []).map((f, i) => `<li><button class="btn btn--sm btn--outline" type="button" data-work-file="${esc(w.id)}|task|${i}">Download</button><span><strong>${esc(w.title)}</strong>${(w.files || []).length > 1 ? " · " + esc(f.name) : ""}${w.note && i === 0 ? " · " + esc(w.note) : ""}</span></li>`).join("")).join("")}</ul>` : ""}
+            ${hw ? `<button class="link-btn" type="button" data-go-tab="assignments">${hw} assignment${hw === 1 ? "" : "s"} to hand in</button>` : ""}</div>` : ""}
           <footer><span class="price">${esc(lkr(t.rate))}${t.rate ? "/hr" : ""}</span><div class="btn-row">
-            <button class="btn btn--sm btn--primary" type="button" data-book-with="${esc(t.id)}">Book</button>
-            ${chatOn() ? `<button class="btn btn--sm btn--outline" type="button" data-chat-with="${esc(t.id)}">Message</button>` : ""}
-            ${isSaved ? `<button class="btn btn--sm btn--ghost" type="button" data-unsave="${esc(t.id)}">Remove</button>` : `<button class="btn btn--sm btn--outline" type="button" data-save="${esc(t.id)}">Add to my tutors</button>`}</div></footer></article>`;
+            ${chatOn() ? `<button class="btn btn--sm btn--outline" type="button" data-chat-with="${esc(t.id)}">Contact</button>` : ""}
+            <button class="btn btn--sm btn--primary" type="button" data-book-with="${esc(t.id)}">Book</button></div></footer>
+          <div class="tutor-save">${isSaved ? `<button class="link-btn" type="button" data-unsave="${esc(t.id)}">Remove from my tutors</button>` : `<button class="link-btn" type="button" data-save="${esc(t.id)}">Add to my tutors</button>`}</div></article>`;
       };
       return `<section><div class="card-head"><h2 class="h-card">My tutors</h2></div>
           ${saved.length ? `<div class="grid grid-3">${saved.map((t) => card(t, true)).join("")}</div>` : `<div class="card"><p class="empty">No tutors yet. Add one below and they'll show here, with their open times on your calendar.</p></div>`}</section>
@@ -3708,6 +3789,166 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     },
   };
 
+  /* ---------- Homework and shared documents ---------- */
+  const WORK_ACCEPT = ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.jpg,.jpeg,.png";
+  function workPill(w) {
+    const label = D.role === "tutor" ? { incomplete: "Not handed in", marking: "To mark", marked: "Marked" } : { incomplete: "Incomplete", marking: "Marking", marked: "Marked" };
+    return `<span class="pill pill--${esc(w.status)}">${esc(label[w.status] || w.status)}</span>`;
+  }
+  function fileList(w, which) {
+    const files = which === "task" ? w.files : which === "sub" ? w.submission && w.submission.files : w.feedback && w.feedback.files;
+    if (!files || !files.length) return "";
+    return `<ul class="work-files">${files.map((f, i) => `<li><button class="btn btn--sm btn--outline" type="button" data-work-file="${esc(w.id)}|${which}|${i}">Download</button><span>${esc(f.name)}</span></li>`).join("")}</ul>`;
+  }
+  // Assignments due on the day picked in the calendar
+  function dueSection() {
+    const list = homework().filter((w) => w.due === D.day);
+    if (!list.length) return "";
+    return `<p class="section-label">Assignments due</p><ul class="slots">${list.map((w) => `<li class="slot"><div><strong>${esc(w.title)}</strong><span>${D.role === "tutor" ? "For " + esc(w.studentName || "your student") : "From " + esc(w.tutorName || "your tutor")}</span></div>
+      <div class="slot-book">${workPill(w)}<button class="btn btn--sm btn--outline" type="button" ${D.role === "tutor" ? `data-student="${esc(w.studentId)}"` : `data-go-tab="assignments"`}>Open</button></div></li>`).join("")}</ul>`;
+  }
+
+  student.assignments = function () {
+    if (!workOn()) return `<div class="card"><h2 class="h-card">Assignments</h2><p class="empty">Assignments work on the live site.</p></div>`;
+    const order = { incomplete: 0, marking: 1, marked: 2 };
+    const list = homework().slice().sort((a, b) => (order[a.status] - order[b.status]) || String(a.due || "").localeCompare(String(b.due || "")));
+    if (!list.length) return `<div class="card"><h2 class="h-card">Assignments</h2><p class="empty">No assignments yet. When a tutor sets homework, it appears here with its deadline.</p></div>`;
+    const n = dueCount();
+    return `<div class="card-head"><h2 class="h-card">Assignments</h2><span class="card-muted small">${n ? `${n} to hand in` : "Nothing to hand in"}</span></div>
+      <p class="form-msg" id="dash-flash" role="status" aria-live="polite"></p>
+      <div class="work-grid">${list.map((w) => {
+        const sub = w.submission;
+        const form = (label, btn) => `<form class="work-submit" data-work-submit="${esc(w.id)}" novalidate>
+            <label class="section-label" for="ws-${esc(w.id)}">${label}</label>
+            <input id="ws-${esc(w.id)}" type="file" multiple accept="${WORK_ACCEPT}">
+            <span class="hint small">Up to 5 files, 20 MB each. Photos of handwritten work are fine.</span>
+            <button class="btn btn--primary btn--sm" type="submit">${btn}</button>
+            <p class="form-msg" data-form-msg role="status" aria-live="polite"></p></form>`;
+        let body;
+        if (w.status === "marked") {
+          const fb = w.feedback || {};
+          body = `<div class="work-submit"><p class="work-meta">Marked${w.markedAt ? " on " + esc(fmtShort(w.markedAt)) : ""} by ${esc(w.tutorName || "your tutor")}.</p>
+            ${fb.note ? `<p class="work-note"><strong>Tutor's comment:</strong> ${esc(fb.note)}</p>` : ""}
+            ${fileList(w, "fb") ? `<p class="section-label">Marked copy</p>${fileList(w, "fb")}` : ""}
+            ${fileList(w, "sub") ? `<p class="section-label">Your answer</p>${fileList(w, "sub")}` : ""}</div>`;
+        } else if (w.status === "marking") {
+          body = `<div class="work-submit"><p class="work-meta">Handed in${sub && sub.at ? " on " + esc(fmtShort(sub.at)) : ""}. ${esc(w.tutorName || "Your tutor")} will mark it.</p>
+            <p class="section-label">Your answer</p>${fileList(w, "sub")}</div>
+            <details><summary class="link-btn">Replace my answer</summary>${form("Choose the new file", "Submit again")}</details>`;
+        } else {
+          body = form("Submit your answer", "Submit answer");
+        }
+        return `<article class="card work-card">
+          <div class="work-top"><h3>${esc(w.title)}</h3>${workPill(w)}</div>
+          <p class="work-meta">From <strong>${esc(w.tutorName || "your tutor")}</strong> · Due ${esc(fmtDue(w.due))}${overdue(w) ? ` · <strong class="danger-text">Overdue</strong>` : ""}</p>
+          ${w.note ? `<p class="work-note">${esc(w.note)}</p>` : ""}
+          <p class="section-label">Assignment</p>${fileList(w, "task")}
+          ${body}</article>`;
+      }).join("")}</div>`;
+  };
+
+  // Tutor: one student's page (message them, send documents or homework, mark answers)
+  function studentDetail(s) {
+    const mine = D.work.filter((w) => w.studentId === s.id);
+    const order = { marking: 0, incomplete: 1, marked: 2 };
+    const hw = mine.filter((w) => w.kind === "homework").sort((a, b) => (order[a.status] - order[b.status]) || String(a.due || "").localeCompare(String(b.due || "")));
+    const docs = mine.filter((w) => w.kind !== "homework").sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    const dr = D.workDraft;
+    const first = String(s.name || "Student").split(" ")[0];
+    const del = (w) => `<button class="btn btn--sm btn--ghost danger-text" type="button" data-work-delete="${esc(w.id)}">Delete</button>`;
+    const confirmBox = (w) => `<div class="confirm" data-work-confirm="${esc(w.id)}" hidden><p><strong>Delete “${esc(w.title)}”?</strong> ${esc(first)} will no longer see it. This can't be undone.</p>
+      <div class="btn-row"><button class="btn btn--danger btn--sm" type="button" data-work-delete-yes="${esc(w.id)}">Delete</button><button class="btn btn--outline btn--sm" type="button" data-work-delete-no="${esc(w.id)}">Keep it</button></div></div>`;
+    const hwItem = (w) => {
+      const sub = w.submission;
+      let mid = "";
+      if (w.status === "marking") {
+        mid = `<p class="work-meta">${esc(first)} handed this in${sub && sub.at ? " on " + esc(fmtShort(sub.at)) : ""}.</p>
+          <p class="section-label">${esc(first)}'s answer</p>${fileList(w, "sub")}
+          <form class="work-submit" data-work-mark="${esc(w.id)}" novalidate>
+            <label class="section-label" for="wm-${esc(w.id)}">Marked copy (optional)</label>
+            <input id="wm-${esc(w.id)}" type="file" multiple accept="${WORK_ACCEPT}">
+            <label class="visually-hidden" for="wn-${esc(w.id)}">Comment for the student</label>
+            <input id="wn-${esc(w.id)}" type="text" data-mark-note maxlength="300" placeholder="Comment for ${esc(first)} (optional)">
+            <button class="btn btn--primary btn--sm" type="submit">Corrected</button>
+            <p class="form-msg" data-form-msg role="status" aria-live="polite"></p></form>`;
+      } else if (w.status === "marked") {
+        mid = `<p class="work-meta">Marked${w.markedAt ? " on " + esc(fmtShort(w.markedAt)) : ""}. ${esc(first)} sees it as Marked.</p>${fileList(w, "sub") ? `<p class="section-label">${esc(first)}'s answer</p>${fileList(w, "sub")}` : ""}`;
+      } else {
+        mid = `<p class="work-meta">Waiting for ${esc(first)} to hand it in.${overdue(w) ? ` <strong class="danger-text">Overdue.</strong>` : ""}</p>`;
+      }
+      return `<li class="work-item"><div class="work-top"><strong>${esc(w.title)}${w.status === "marking" ? `<span class="red-dot" title="To mark"></span>` : ""}</strong>${workPill(w)}</div>
+        <p class="work-meta">Due ${esc(fmtDue(w.due))}</p>
+        ${mid}
+        <p class="section-label">Your file</p>${fileList(w, "task")}
+        <div class="btn-row">${del(w)}</div>${confirmBox(w)}</li>`;
+    };
+    const docItem = (w) => `<li class="work-item"><div class="work-top"><strong>${esc(w.title)}</strong><span class="work-meta">${w.createdAt ? esc(fmtShort(w.createdAt)) : ""}</span></div>
+        ${w.note ? `<p class="work-note">${esc(w.note)}</p>` : ""}${fileList(w, "task")}
+        <div class="btn-row">${del(w)}</div>${confirmBox(w)}</li>`;
+    return `<div><button class="link-btn" type="button" data-student-back>‹ All students</button></div>
+      <div class="card"><div class="work-top"><div class="student-head"><div class="avatar" aria-hidden="true">${esc(initials(s.name))}</div>
+        <div><h2 class="h-card" style="margin:0">${esc(s.name)}</h2><p class="work-meta">${esc([...s.subjects].filter(Boolean).join(", "))} · ${s.lessons} lesson${s.lessons === 1 ? "" : "s"}${s.next ? " · next " + esc(fmtDate(s.next)) : ""}</p></div></div>
+        ${chatOn() ? `<button class="btn btn--primary btn--sm" type="button" data-chat-with="${esc(s.id)}">Message ${esc(first)}</button>` : ""}</div></div>
+      <p class="form-msg" id="dash-flash" role="status" aria-live="polite"></p>
+      ${workOn() ? `<div class="admin-cols">
+        <form class="card form" id="work-form" data-student-id="${esc(s.id)}" novalidate>
+          <h2 class="h-card">Send a document or homework</h2>
+          <div class="field"><label for="wf-title">Heading</label><input id="wf-title" maxlength="120" value="${esc(dr.title)}" placeholder="e.g. Homework: Quadratic equations" required></div>
+          <div class="form-grid">
+            <div class="field"><label for="wf-kind">Type</label><select id="wf-kind"><option value="homework"${dr.kind === "homework" ? " selected" : ""}>Homework (to hand in)</option><option value="material"${dr.kind === "material" ? " selected" : ""}>Document (to read)</option></select></div>
+            <div class="field" id="wf-due-field"${dr.kind === "material" ? " hidden" : ""}><label for="wf-due">Deadline</label><input id="wf-due" type="date" min="${todayKey()}" value="${esc(dr.due)}"></div>
+          </div>
+          <div class="field"><label for="wf-note">Instructions (optional)</label><textarea id="wf-note" rows="2" maxlength="500" placeholder="Anything the student should know">${esc(dr.note)}</textarea></div>
+          <div class="field"><label for="wf-file">File</label><input id="wf-file" type="file" multiple accept="${WORK_ACCEPT}"><span class="hint">Up to 5 files, 20 MB each. Only you and ${esc(first)} can open them.</span></div>
+          <button class="btn btn--primary" type="submit">Send to ${esc(first)}</button>
+          <p class="form-msg" data-form-msg role="status" aria-live="polite"></p>
+        </form>
+        <div class="work-stack">
+          <div class="card"><h2 class="h-card">Homework</h2>${hw.length ? `<ul class="work-list">${hw.map(hwItem).join("")}</ul>` : `<p class="empty">No homework set yet. Homework you send appears in ${esc(first)}'s Assignments tab with its deadline.</p>`}</div>
+          <div class="card"><h2 class="h-card">Documents shared</h2>${docs.length ? `<ul class="work-list">${docs.map(docItem).join("")}</ul>` : `<p class="empty">No documents shared yet. ${esc(first)} sees them under My tutors.</p>`}</div>
+        </div></div>` : ""}`;
+  }
+
+  // Tutor: verification documents box (also refreshed on its own while the profile form is being edited)
+  let lastDocs = "";
+  function docsCard() {
+    const a = D.acct;
+    return `<div class="card" id="docs-card"><h2 class="h-card">Verification documents</h2>
+          <p class="card-muted">${(a.docs || []).length} file${(a.docs || []).length === 1 ? "" : "s"} uploaded. ${a.review && a.review.note ? "Note from TutorED: " + esc(a.review.note) : ""}</p>
+          ${(a.docs || []).length ? `<ul class="doc-list">${a.docs.map((d) => `<li><span class="tag">${{ id: "ID", qualification: "Qualification", language: "Language proficiency" }[d.kind] || "Document"}</span> <span>${esc(d.name)}</span></li>`).join("")}</ul>` : `<p class="banner banner--pending" role="note">We can't verify you until you upload your ID and at least one qualification.</p>`}
+          <form class="form" id="doc-form" novalidate>
+            <div class="field-row">
+              <div class="field"><label for="df-kind">Document type</label><select id="df-kind"><option value="id">National ID (NIC) or passport</option><option value="qualification">Qualification</option><option value="language">Language proficiency (optional)</option></select></div>
+              <div class="field"><label for="df-file">Files</label><input id="df-file" type="file" accept=".pdf,.jpg,.jpeg,.png" multiple><span class="hint">PDF, JPG or PNG, up to 5 MB each. Only you and TutorED admins can open them.</span></div>
+            </div>
+            <button class="btn btn--outline btn--sm" type="submit">Upload documents</button>
+            <p class="form-msg${D.docMsg ? (D.docErr ? " err" : " ok") : ""}" id="doc-msg" role="status" aria-live="polite">${esc(D.docMsg)}</p>
+          </form></div>`;
+  }
+  // Tutor: nudge to finish the public profile
+  function profileBanner() {
+    if (D.role !== "tutor" || !window.TutorEDAvatar) return "";
+    const t = D.tutorDoc || {};
+    if (photoOk(t.photo) && qualLines(t).length) return "";
+    return `<div class="banner banner--pending" role="note">Add your profile photo and qualifications in <button class="link-btn" type="button" data-go-tab="settings">Profile &amp; settings</button>. Students see them on your card.</div>`;
+  }
+  // Square 400px JPEG from whatever photo the tutor picks
+  function makeAvatar(file) {
+    return new Promise((res, rej) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const s = Math.min(img.naturalWidth, img.naturalHeight);
+        const c = document.createElement("canvas"); c.width = c.height = 400;
+        c.getContext("2d").drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 0, 0, 400, 400);
+        URL.revokeObjectURL(url);
+        c.toBlob((b) => (b ? res(b) : rej(new Error("That photo couldn't be read. Try another one."))), "image/jpeg", 0.85);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("That file isn't a photo we can read. Use a JPG or PNG.")); };
+      img.src = url;
+    });
+  }
+
   function accountExtras() {
     return `<div class="admin-cols">
         <div class="card"><h2 class="h-card">Password</h2><p class="card-muted">Signed up with ${esc({ email: "email and password", google: "Google", phone: "a phone code" }[D.acct.method] || D.acct.method)}. ${X.HOSTED ? "You can choose a new password at any time." : "Changing passwords works in the live site. Test mode doesn't store passwords."}</p>
@@ -3731,25 +3972,27 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       const rate = D.tutorDoc && D.tutorDoc.rate;
       const now = new Date();
       const hoursMonth = myLessons().filter((b) => b.status === "confirmed" && new Date(b.start).getMonth() === now.getMonth() && new Date(b.start).getFullYear() === now.getFullYear()).reduce((h, b) => h + (b.minutes || 60) / 60, 0);
-      return `${verifyBanner()}${nextLessonCard()}
-        <div class="tiles">${tile(up.length, "Upcoming lessons")}${tile(openWeek, "Open times this week", openWeek === 0)}${tile(students, "Students")}${tile(rate ? lkr(Math.round(rate * hoursMonth * 0.9)) : "—", rate ? "Your earnings this month (after TutorED's 10%)" : "Set your rate to see earnings")}</div>
+      return `${verifyBanner()}${profileBanner()}${nextLessonCard()}
+        <div class="tiles">${tile(up.length, "Upcoming lessons", false, "calendar")}${tile(openWeek, "Open times this week", openWeek === 0, "calendar")}${tile(students, "Students", false, "students")}${tile(toMark(), "Homework to mark", toMark() ? "alert" : false, "students")}${tile(rate ? lkr(Math.round(rate * hoursMonth * 0.9)) : "—", rate ? "Your earnings this month (after TutorED's 10%)" : "Set your rate to see earnings")}</div>
         <div class="card"><div class="card-head"><h2 class="h-card">Coming up</h2><button class="link-btn" type="button" data-go-tab="calendar">Open calendar</button></div>
           ${up.length ? `<ul class="lessons">${up.slice(0, 5).map((b) => lessonItem(b, { actions: false })).join("")}</ul>` : `<p class="empty">No lessons booked yet.</p>`}</div>`;
     },
 
     calendar() {
       const markers = {};
-      const mark = (k) => (markers[k] = markers[k] || { lessons: [], open: 0 });
+      const mark = (k) => (markers[k] = markers[k] || { lessons: [], open: 0, due: [] });
       myLessons().filter((b) => b.status === "confirmed").forEach((b) => mark(keyOfIso(b.start)).lessons.push(b));
+      homework().forEach((w) => { if (w.due && w.status !== "marked") mark(w.due).due.push(w); });
       const open = tutorOpenSlots();
       open.forEach((s) => mark(keyOfIso(s.start)).open++);
       const dayLessons = myLessons().filter((b) => keyOfIso(b.start) === D.day);
       const dayOpen = open.filter((s) => keyOfIso(s.start) === D.day);
       const past = D.day < todayKey();
-      return `${verifyBanner()}<div class="cal-layout">${calendarHtml(markers)}
+      return `${verifyBanner()}${profileBanner()}<div class="cal-layout">${calendarHtml(markers)}
           <div class="card day-panel"><h2 class="h-card">${esc(fmtLongDay(D.day))}</h2>
             <p class="section-label">Booked lessons</p>
             ${dayLessons.length ? `<ul class="lessons">${dayLessons.map((b) => lessonItem(b)).join("")}</ul>` : `<p class="empty">No lessons on this day.</p>`}
+            ${dueSection()}
             <p class="section-label">Your open times</p>
             ${dayOpen.length ? `<ul class="slots">${dayOpen.map((s) => `<li class="slot"><div><strong>${esc(fmtRange(s.start, s.minutes || 60))}</strong><span>Open for booking</span></div><button class="btn btn--sm btn--ghost danger-text" type="button" data-remove-slot="${esc(s.id)}">Remove</button></li>`).join("")}</ul>` : `<p class="empty">No open times on this day.</p>`}
             ${past ? `<p class="empty">You can't add times to a past day.</p>` : `<form class="slot-form" id="slot-form" novalidate>
@@ -3773,8 +4016,16 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
         if (isPast(b.start) && (!s.last || b.start > s.last)) s.last = b.start;
       });
       const rows = Object.values(by);
-      return rows.length ? `<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Student</th><th scope="col">Subjects</th><th scope="col">Lessons</th><th scope="col">Next lesson</th><th scope="col">Last lesson</th>${chatOn() ? `<th scope="col"><span class="visually-hidden">Message</span></th>` : ""}</tr></thead><tbody>
-          ${rows.map((s) => `<tr><td><strong>${esc(s.name)}</strong></td><td>${esc([...s.subjects].join(", "))}</td><td>${s.lessons}</td><td class="nowrap">${s.next ? esc(fmtDate(s.next)) : "—"}</td><td class="nowrap muted">${s.last ? esc(fmtDate(s.last)) : "—"}</td>${chatOn() ? `<td><button class="btn btn--sm btn--outline" type="button" data-chat-with="${esc(s.id)}">Message</button></td>` : ""}</tr>`).join("")}</tbody></table></div>`
+      if (D.student && by[D.student]) return studentDetail(by[D.student]);
+      const hwCell = (s) => {
+        const mine = homework().filter((w) => w.studentId === s.id);
+        const m = mine.filter((w) => w.status === "marking").length, wait = mine.filter((w) => w.status === "incomplete").length;
+        return m ? `<strong class="danger-text">${m} to mark</strong>` : wait ? `${wait} set` : mine.length ? "All marked" : "—";
+      };
+      return rows.length ? `<p class="card-muted small" style="margin:0">Choose a student to message them, send documents or homework, and mark their answers.</p>
+        <div class="table-wrap"><table class="table"><thead><tr><th scope="col">Student</th><th scope="col">Subjects</th><th scope="col">Lessons</th><th scope="col">Next lesson</th><th scope="col">Homework</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead><tbody>
+          ${rows.map((s) => `<tr><td class="nowrap"><button class="student-link" type="button" data-student="${esc(s.id)}">${esc(s.name)}</button>${toMark(s.id) ? `<span class="red-dot" title="Homework to mark"></span><span class="visually-hidden"> has homework to mark</span>` : ""}</td><td>${esc([...s.subjects].filter(Boolean).join(", "))}</td><td>${s.lessons}</td><td class="nowrap">${s.next ? esc(fmtDate(s.next)) : "—"}</td><td class="nowrap">${hwCell(s)}</td><td class="nowrap"><button class="btn btn--sm btn--primary" type="button" data-student="${esc(s.id)}">Open</button>${chatOn() ? ` <button class="btn btn--sm btn--outline" type="button" data-chat-with="${esc(s.id)}">Message</button>` : ""}</td></tr>`).join("")}</tbody></table></div>
+        <p class="form-msg" id="dash-flash" role="status" aria-live="polite"></p>`
         : `<div class="card"><p class="empty">No students yet. Once a student books one of your open times, they appear here.</p></div>`;
     },
 
@@ -3790,6 +4041,16 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
             <div class="field"><label for="ds-langs">Teaching languages</label><input id="ds-langs" value="${esc(t.languages || "")}" placeholder="e.g. Sinhala, English"></div>
           </div>
           <div class="field"><label for="ds-bio">Short bio</label><textarea id="ds-bio" rows="3" placeholder="Your experience and how you teach">${esc(t.bio || "")}</textarea></div>
+          <div class="field"><label for="ds-photo">Profile photo (required)</label>
+            <div class="photo-row"><span id="ds-photo-preview">${avatarHtml(a.name || t.name, t.photo)}</span>
+              <div><input id="ds-photo" type="file" accept="image/jpeg,image/png,image/webp"><span class="hint">A clear photo of your face, JPG or PNG. Students see it on your card.</span></div></div></div>
+          <h2 class="h-card" style="margin-top:8px">Qualifications</h2>
+          <p class="card-muted small">Students see these on your card. Fill in at least one.</p>
+          <div class="form-grid">${QUAL_FIELDS.map(([type, label, id]) => {
+            const cur = ((t.quals || []).find((q) => q.type === type) || {}).text || "";
+            const ph = { al: "e.g. Physical Science: 2 As and a B (2019)", degree: "e.g. BSc Engineering, University of Moratuwa", masters: "e.g. MSc Mathematics, University of Colombo", other: "e.g. Diploma in Teaching, 5 years of tutoring" }[type];
+            return `<div class="field"><label for="${id}">${label}${type === "masters" || type === "other" ? " (optional)" : ""}</label><input id="${id}" maxlength="140" value="${esc(cur)}" placeholder="${ph}"></div>`;
+          }).join("")}</div>
           <h2 class="h-card" style="margin-top:8px">Contact details</h2>
           <div class="form-grid">
             <div class="field"><label for="ds-email">Email</label><input id="ds-email" type="email" autocomplete="email" value="${esc(a.email || "")}"></div>
@@ -3798,16 +4059,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
           <div class="btn-row"><button class="btn btn--primary" type="submit">Save changes</button></div>
           <p class="form-msg" id="dash-flash" role="status" aria-live="polite"></p>
         </form>
-        <div class="card" id="docs-card"><h2 class="h-card">Verification documents</h2>
-          <p class="card-muted">${(a.docs || []).length} file${(a.docs || []).length === 1 ? "" : "s"} uploaded. ${a.review && a.review.note ? "Note from TutorED: " + esc(a.review.note) : ""}</p>
-          ${(a.docs || []).length ? `<ul class="doc-list">${a.docs.map((d) => `<li><span class="tag">${{ id: "ID", qualification: "Qualification", language: "Language proficiency" }[d.kind] || "Document"}</span> <span>${esc(d.name)}</span></li>`).join("")}</ul>` : `<p class="banner banner--pending" role="note">We can't verify you until you upload your ID and at least one qualification.</p>`}
-          <form class="form" id="doc-form" novalidate>
-            <div class="field-row">
-              <div class="field"><label for="df-kind">Document type</label><select id="df-kind"><option value="id">National ID (NIC) or passport</option><option value="qualification">Qualification</option><option value="language">Language proficiency (optional)</option></select></div>
-              <div class="field"><label for="df-file">Files</label><input id="df-file" type="file" accept=".pdf,.jpg,.jpeg,.png" multiple><span class="hint">PDF, JPG or PNG, up to 5 MB each. Only you and TutorED admins can open them.</span></div>
-            </div>
-            <button class="btn btn--outline btn--sm" type="submit">Upload documents</button>
-          </form></div>
+        ${(lastDocs = docsCard())}
         ${accountExtras()}`;
     },
   };
@@ -4024,7 +4276,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     if (!added) throw new Error("Files can't be stored in this view.");
     const at = nowIso();
     await saveAcct({ docs: [...(D.acct.docs || []), ...added], history: [...(D.acct.history || []), { at, action: `Uploaded ${added.length} document${added.length === 1 ? "" : "s"}`, by: D.id }] });
-    return `Uploaded ${added.length} file${added.length === 1 ? "" : "s"}. We'll review them soon.`;
+    return `Upload successful: ${added.length} file${added.length === 1 ? "" : "s"} received. We'll review ${added.length === 1 ? "it" : "them"} soon.`;
   }
 
   async function saveSettings(form) {
@@ -4035,13 +4287,100 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     } else {
       if (!v("ds-subjects")) throw new Error("List at least one subject.");
       const rate = v("ds-rate") === "" ? null : Number(v("ds-rate"));
+      const quals = QUAL_FIELDS.map(([type, , id]) => ({ type, text: v(id) })).filter((q) => q.text);
+      let photo = (D.tutorDoc && D.tutorDoc.photo) || "";
+      if (window.TutorEDAvatar) {
+        if (!D.photoBlob && !photoOk(photo)) throw new Error("Add a profile photo. Students see it on your card.");
+        if (!quals.length) throw new Error("Add at least one qualification, such as your A/L results or your degree.");
+        if (D.photoBlob) { photo = await window.TutorEDAvatar.upload(D.photoBlob, photo); D.photoBlob = null; }
+      }
       await saveAcct({ name: v("ds-name"), subjects: v("ds-subjects"), email: v("ds-email").toLowerCase(), phone: v("ds-phone") });
       const ref = S.db.doc("tutors/" + D.id);
-      const pub = { name: v("ds-name"), subjects: v("ds-subjects"), rate, languages: v("ds-langs"), bio: v("ds-bio"), updatedAt: nowIso() };
+      const pub = { name: v("ds-name"), subjects: v("ds-subjects"), rate, languages: v("ds-langs"), bio: v("ds-bio"), photo, quals, updatedAt: nowIso() };
       if (D.tutorDoc) await ref.update(pub);
       else await ref.set(clean({ ...pub, slots: [], approved: D.acct.status === "approved", test: !!D.acct.test }));
     }
     return "Saved.";
+  }
+
+  /* ---------- Homework and shared documents ---------- */
+  const WORK_MAX = 20 * 1024 * 1024;
+  async function uploadWork(input, tutorId, studentId, prefix, required) {
+    const files = input ? Array.from(input.files) : [];
+    if (!files.length) { if (required) throw new Error("Choose a file first."); return []; }
+    if (files.length > 5) throw new Error("Choose up to 5 files at a time.");
+    for (const f of files) if (f.size > WORK_MAX) throw new Error(`${f.name} is larger than 20 MB.`);
+    const out = [];
+    for (const f of files) out.push(await window.TutorEDClassFiles.upload(f, tutorId, studentId, prefix));
+    return out;
+  }
+  const dropFiles = (list) => { const p = (list || []).map((f) => f && f.path).filter(Boolean); if (p.length) window.TutorEDClassFiles.remove(p).catch(() => {}); };
+  const findWork = (id) => { const w = D.work.find((x) => x.id === id); if (!w) throw new Error("That item no longer exists."); return w; };
+
+  // Tutor sends a document or sets homework for one student
+  async function sendWork(form) {
+    const sid = form.dataset.studentId;
+    const title = $("#wf-title", form).value.trim(), kind = $("#wf-kind", form).value === "material" ? "material" : "homework";
+    const due = $("#wf-due", form).value, note = $("#wf-note", form).value.trim();
+    if (!title) throw new Error("Add a heading so the student knows what this is.");
+    if (kind === "homework" && !due) throw new Error("Choose a deadline for the homework.");
+    if (kind === "homework" && due < todayKey()) throw new Error("The deadline can't be in the past.");
+    const b = D.bookings.find((x) => x.studentId === sid && x.studentName);
+    const name = (b && b.studentName) || "Student";
+    const files = await uploadWork($("#wf-file", form), D.id, sid, "task", true);
+    try {
+      await S.db.collection("assignments").doc().set(clean({
+        kind, title, note: note || undefined, due: kind === "homework" ? due : undefined, files,
+        tutorId: D.id, tutorName: D.acct.name || "Tutor", studentId: sid, studentName: name,
+        status: kind === "homework" ? "incomplete" : "shared", createdAt: nowIso(),
+      }));
+    } catch (e) { dropFiles(files); throw e; }
+    D.workDraft = { title: "", kind, due: "", note: "" };
+    return kind === "homework" ? `Homework sent. ${name} sees it in Assignments, due ${fmtDue(due)}.` : `Document sent. ${name} sees it under My tutors.`;
+  }
+  // Student hands in (or replaces) an answer
+  async function submitWork(id, form) {
+    const w = findWork(id);
+    if (w.status === "marked") throw new Error("This assignment has already been marked.");
+    const files = await uploadWork($("input[type=file]", form), w.tutorId, D.id, "answer", true);
+    const old = w.submission && w.submission.files;
+    try { await S.db.doc("assignments/" + id).update({ submission: { files, at: nowIso() }, status: "marking" }); }
+    catch (e) { dropFiles(files); throw e; }
+    dropFiles(old);
+    return `Submitted “${w.title}”. ${w.tutorName || "Your tutor"} will mark it.`;
+  }
+  // Tutor confirms the answer has been corrected
+  async function markWork(id, form) {
+    const w = findWork(id);
+    const files = await uploadWork($("input[type=file]", form), D.id, w.studentId, "marked", false);
+    const note = (($("[data-mark-note]", form) || {}).value || "").trim();
+    try { await S.db.doc("assignments/" + id).update(clean({ status: "marked", markedAt: nowIso(), feedback: files.length || note ? { files, note: note || undefined } : undefined })); }
+    catch (e) { dropFiles(files); throw e; }
+    return `Marked as corrected. ${w.studentName || "The student"} now sees it as Marked.`;
+  }
+  async function deleteWork(id) {
+    const w = findWork(id);
+    await S.db.doc("assignments/" + id).delete();
+    dropFiles([...(w.files || []), ...((w.submission && w.submission.files) || []), ...((w.feedback && w.feedback.files) || [])]);
+    return `Deleted “${w.title}”.`;
+  }
+  async function openWorkFile(spec) {
+    const [id, which, i] = spec.split("|");
+    const w = findWork(id);
+    const files = which === "task" ? w.files : which === "sub" ? w.submission && w.submission.files : w.feedback && w.feedback.files;
+    const f = files && files[Number(i)];
+    if (!f) throw new Error("That file is no longer available.");
+    const win = window.open("", "_blank");
+    try { const url = await window.TutorEDClassFiles.url(f.path); if (win) win.location = url; else location.href = url; }
+    catch (e) { if (win) win.close(); throw e; }
+  }
+  // Runs a form action that uploads files: shows progress and errors next to the button.
+  async function runForm(form, fn) {
+    const msg = $("[data-form-msg]", form), btn = $("button[type=submit]", form);
+    if (btn) btn.disabled = true;
+    if (msg) { msg.className = "form-msg"; msg.textContent = "Uploading…"; }
+    try { const m = await fn(); flash(m || "Done."); render(); }
+    catch (e) { if (msg) { msg.className = "form-msg err"; msg.textContent = friendlyError(e).message; } if (btn) btn.disabled = false; }
   }
 
   async function deleteAccount() {
@@ -4065,7 +4404,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       const t = e.target.closest("button");
       if (!t || t.disabled) return;
       const d = t.dataset;
-      if (d.dashTab) { D.tab = d.dashTab; D.settingsDirty = false; D.flash = ""; if (D.tab === "messages") { D.chatMobileThread = false; markThreadRead(); } return render(); }
+      if (d.dashTab) { D.tab = d.dashTab; D.settingsDirty = false; D.flash = ""; D.student = null; D.photoBlob = null; D.docMsg = ""; if (D.tab === "messages") { D.chatMobileThread = false; markThreadRead(); } return render(); }
       if (d.chatWith || d.chatOpen) return openChat(d.chatWith || d.chatOpen);
       if (t.hasAttribute("data-chat-back")) { D.chatMobileThread = false; return render(); }
       if (d.goTab) { D.tab = d.goTab; D.settingsDirty = false; D.flash = ""; render(); return window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" }); }
@@ -4097,6 +4436,12 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
         const n = $(`[data-pack-note="${d.packDownload}"]`); if (n) n.hidden = !n.hidden; return;
       }
       if (d.removeSlot) { t.disabled = true; return run(() => removeSlot(d.removeSlot)); }
+      if (d.student) { D.tab = "students"; D.student = d.student; D.workDraft = { title: "", kind: "homework", due: "", note: "" }; D.flash = ""; render(); return window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" }); }
+      if (t.hasAttribute("data-student-back")) { D.student = null; D.flash = ""; return render(); }
+      if (d.workFile) return openWorkFile(d.workFile).catch((err) => flash(friendlyError(err).message, true));
+      if (d.workDelete) { const c = $(`[data-work-confirm="${d.workDelete}"]`); if (c) c.hidden = false; return; }
+      if (d.workDeleteNo) { const c = $(`[data-work-confirm="${d.workDeleteNo}"]`); if (c) c.hidden = true; return; }
+      if (d.workDeleteYes) { t.disabled = true; return run(() => deleteWork(d.workDeleteYes)); }
       if (t.hasAttribute("data-delete-account")) { $("#del-confirm").hidden = false; return; }
       if (t.hasAttribute("data-delete-account-no")) { $("#del-confirm").hidden = true; return; }
       if (t.hasAttribute("data-delete-account-yes")) { t.disabled = true; return run(deleteAccount); }
@@ -4119,6 +4464,16 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     root.addEventListener("change", (e) => {
       if (e.target.id === "dash-tutor-filter") { D.tutorFilter = e.target.value; D.flash = ""; render(); }
       if (e.target.id === "pack-mine") { D.packMine = e.target.checked; render(); }
+      if (e.target.id === "ds-photo") {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        D.settingsDirty = true;
+        makeAvatar(file).then((blob) => {
+          D.photoBlob = blob;
+          const p = $("#ds-photo-preview"); if (p) p.innerHTML = `<img class="avatar avatar--photo" src="${URL.createObjectURL(blob)}" alt="Your new photo">`;
+          flash("Photo ready. Press Save changes to publish it.");
+        }).catch((err) => { D.photoBlob = null; e.target.value = ""; flash(friendlyError(err).message, true); });
+      }
     });
     root.addEventListener("input", (e) => {
       if (e.target.id === "dash-find") {
@@ -4129,14 +4484,35 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
         return;
       }
       if (e.target.id === "chat-input") { D.chatDraft = e.target.value; return; }
+      if (e.target.closest("#work-form")) {
+        const g = (id) => { const el = document.getElementById(id); return el ? el.value : ""; };
+        D.workDraft = { title: g("wf-title"), kind: g("wf-kind") === "material" ? "material" : "homework", due: g("wf-due"), note: g("wf-note") };
+        const df = $("#wf-due-field"); if (df) df.hidden = D.workDraft.kind === "material";
+        return;
+      }
       if (e.target.closest("#dash-settings")) D.settingsDirty = true;
     });
     root.addEventListener("submit", (e) => {
       const f = e.target;
       e.preventDefault();
       if (f.id === "slot-form") return run(() => addSlots(f));
-      if (f.id === "doc-form") return run(() => addDocs());
-      if (f.id === "dash-settings") { D.settingsDirty = false; return run(() => saveSettings(f)); }
+      if (f.id === "doc-form") {
+        const b = $("button[type=submit]", f), m = $("#doc-msg");
+        if (b) b.disabled = true;
+        if (m) { m.className = "form-msg"; m.textContent = "Uploading…"; }
+        return addDocs().then((msg) => { D.docMsg = msg; D.docErr = false; }, (err) => { D.docMsg = friendlyError(err).message; D.docErr = true; })
+          .then(() => { const c = $("#docs-card"); if (c) { lastDocs = docsCard(); c.outerHTML = lastDocs; } render(); });
+      }
+      if (f.id === "dash-settings") {
+        // Keep what they typed if something is missing; only refresh once it has saved.
+        const b = $("button[type=submit]", f); if (b) b.disabled = true;
+        flash("Saving…");
+        return saveSettings(f).then((m) => { D.settingsDirty = false; flash(m || "Saved."); render(); }, (err) => flash(friendlyError(err).message, true))
+          .then(() => { const b2 = $("#dash-settings button[type=submit]"); if (b2) b2.disabled = false; });
+      }
+      if (f.id === "work-form") return runForm(f, () => sendWork(f));
+      if (f.dataset.workSubmit) return runForm(f, () => submitWork(f.dataset.workSubmit, f));
+      if (f.dataset.workMark) return runForm(f, () => markWork(f.dataset.workMark, f));
       if (f.id === "chat-form") {
         const b = $("button[type=submit]", f); if (b) b.disabled = true;
         return sendChat().then(() => { D.flash = ""; }).catch((err) => flash(friendlyError(err).message, true)).finally(() => { render(); requestAnimationFrame(() => { const i = $("#chat-input"); if (i) i.focus(); }); });
@@ -4147,6 +4523,8 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 
   bind();
   document.addEventListener("visibilitychange", () => { if (!document.hidden && D.tab === "messages") { markThreadRead(); render(); } });
+  // Re-check the clock so Join buttons switch on by themselves 10 minutes before a lesson.
+  setInterval(() => { if (D.acct && !document.hidden && !$("#dash-app").hidden && D.bookings.length && !(D.tab === "settings" && D.settingsDirty)) render(); }, 20000);
   window.TutorEDDash = { enter, reset };
 })();
 
