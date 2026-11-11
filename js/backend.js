@@ -306,6 +306,27 @@
   // Safety net in case a live update is missed.
   setInterval(() => { if (!document.hidden && chatFns.size) chatPoke(); }, 15000);
 
+  /* ---------- Study materials (files published by admins) ---------- */
+  const STUDY = CFG.studyBucket || "study-files";
+  window.TutorEDFiles = {
+    async upload(file) {
+      await sessionReady;
+      if (!uid()) throw new Error("Log in before uploading files.");
+      const safe = String(file.name || "file.pdf").replace(/[^A-Za-z0-9._-]+/g, "_").slice(-80);
+      const path = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8) + "-" + safe;
+      const { error } = await sb.storage.from(STUDY).upload(path, file, { contentType: file.type || "application/pdf", upsert: false });
+      if (error) throw error;
+      return { path, size: file.size, name: file.name };
+    },
+    // A private link that works for one hour. Only signed-in people can get one.
+    async url(path) {
+      const { data, error } = await sb.storage.from(STUDY).createSignedUrl(path, 3600);
+      if (error) throw nice(error, "That file couldn't be opened.");
+      return data.signedUrl;
+    },
+    async remove(path) { const { error } = await sb.storage.from(STUDY).remove([path]); if (error) throw nice(error); },
+  };
+
   window.TutorEDHosted = true;
   window.claude = { use: async (name) => ({ db, user, assets })[name] || null };
 })();
