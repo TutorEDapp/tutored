@@ -823,6 +823,49 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 .doc-list li span:last-child { overflow-wrap: anywhere; }
 #docs-card .banner { margin: 0 0 16px; }
 
+
+/* ---------- Messages (chat) ---------- */
+.count--alert { background: var(--cornflower-deep); color: var(--white); }
+.admin-tab[aria-selected="true"] .count--alert { background: var(--cornflower); color: var(--ink); }
+.chat { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.chat > * { min-width: 0; }
+.chat-list { display: grid; gap: 12px; }
+.chat-list .h-card, .chat-head .h-card { margin: 0; }
+.chat-items { list-style: none; margin: 0 -8px; padding: 0; display: grid; gap: 2px; max-height: 420px; overflow-y: auto; }
+.chat-item { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px; border: 0; border-radius: 10px; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.chat-item:hover { background: var(--surface-2); }
+.chat-item.is-active { background: var(--cornflower-soft); }
+.chat-item .avatar { width: 38px; height: 38px; font-size: 0.85rem; }
+.chat-item-text { flex: 1; min-width: 0; display: grid; }
+.chat-item-text strong { font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-item-text small, .chat-item-meta small { color: var(--text-muted); font-size: 0.8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-item-meta { display: grid; justify-items: end; gap: 4px; flex-shrink: 0; }
+.chat-start { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
+.chat-start .section-label { margin: 0; }
+.chat-start-row { display: flex; gap: 8px; }
+.chat-start-row select { flex: 1; min-width: 0; }
+.chat-main { display: grid; gap: 10px; }
+.chat-main--empty { min-height: 200px; place-items: center; }
+.chat-head { display: flex; align-items: center; gap: 10px; }
+.chat-head .avatar { width: 38px; height: 38px; font-size: 0.85rem; }
+.chat-back { display: none; }
+.chat-note { margin: 0; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--warn-bg); color: var(--warn); font-size: 0.8125rem; font-weight: 500; }
+.chat-thread { list-style: none; margin: 0; padding: 12px; display: flex; flex-direction: column; gap: 8px; height: min(52vh, 460px); overflow-y: auto; background: var(--surface-2); border-radius: 12px; }
+.chat-day { align-self: center; margin: 6px 0; font-size: 0.75rem; color: var(--text-muted); }
+.bubble { align-self: flex-start; max-width: min(80%, 520px); padding: 8px 12px; border-radius: 14px 14px 14px 4px; background: var(--white); border: 1px solid var(--line); }
+.bubble p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-sm); }
+.bubble small { display: block; margin-top: 2px; font-size: 0.72rem; color: var(--text-muted); text-align: right; }
+.bubble--me { align-self: flex-end; border-radius: 14px 14px 4px 14px; background: var(--cornflower-deep); border-color: var(--cornflower-deep); color: var(--white); }
+.bubble--me small { color: #dbe4fb; }
+.chat-compose { display: flex; gap: 8px; align-items: flex-end; }
+.chat-compose textarea { flex: 1; min-width: 0; resize: vertical; min-height: 48px; max-height: 200px; }
+@media (max-width: 760px) {
+  .chat { grid-template-columns: minmax(0, 1fr); }
+  .chat.show-thread .chat-list { display: none; }
+  .chat:not(.show-thread) .chat-main { display: none; }
+  .chat-back { display: inline-flex; }
+  .chat-thread { height: 55vh; }
+}
 </style>
 <a class="skip-link" href="#main">Skip to content</a>
 <div class="test-banner" role="note"><div class="container">
@@ -1161,14 +1204,14 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     <div class="grid grid-3">
       <div class="card step"><div class="step-num">1</div><h3>You pay when you book</h3><p class="card-muted">Pay by local card. You see the full price before you confirm, and your booking is confirmed straight away.</p></div>
       <div class="card step"><div class="step-num">2</div><h3>We hold your payment</h3><p class="card-muted">Your money stays with TutorED. The tutor can't take it before the lesson. <span class="placeholder">[Add how payments are held, e.g. separate client account]</span></p></div>
-      <div class="card step"><div class="step-num">3</div><h3>Your tutor is paid after</h3><p class="card-muted">Once the lesson is done, we release the payment to your tutor within 24 hours.</p></div>
+      <div class="card step"><div class="step-num">3</div><h3>Your tutor is paid after</h3><p class="card-muted">Once the lesson is done, we release the payment to your tutor. <span class="placeholder">[Add timing, e.g. within 24 hours]</span></p></div>
     </div>
     <div class="card" style="margin-top:20px">
       <h3>If something goes wrong</h3>
       <ul class="feature-list" style="margin:12px 0 0">
         <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><strong>Tutor cancels or doesn't show up.</strong> You get a full refund.</span></li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><strong>You're not happy with the lesson.</strong> Ask for your money back within 2 hours of the lesson ending. A TutorED admin reviews every request and decides on the refund before the tutor is paid.</span></li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><strong>You need to cancel.</strong> Cancel any time before the lesson starts and you get a full refund.</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><strong>The lesson wasn't as promised.</strong> Report it within <span class="placeholder">[Add hours]</span>. We look into it before the tutor is paid.</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><strong>You need to cancel.</strong> Cancel in time and you're refunded. <span class="placeholder">[Add cancellation window and refund rules]</span></span></li>
       </ul>
     </div>
   </div>
@@ -1181,7 +1224,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       <span class="eyebrow">Payments</span>
       <h2 id="payment-title">Pay securely by card</h2>
       <p class="card-muted">All prices are shown in Sri Lankan rupees (LKR). You see the full price before you confirm a booking.</p>
-      <p class="card-muted">If you or your tutor cancel before the lesson, you get a full refund. After a lesson, you have 2 hours to ask for your money back, and an admin reviews each request.</p>
+      <p class="card-muted">If a tutor cancels, you get a full refund. <span class="placeholder">[Add refund policy details]</span></p>
     </div>
     <div class="payment-box">
       <div class="card payment-option"><div class="icon" style="margin:0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19M6 15h4"/></svg></div><div><h3>Local card</h3><p class="card-muted">Pay instantly with a Visa or Mastercard debit or credit card issued in Sri Lanka. Your booking is confirmed right away. <span class="placeholder">[Add payment gateway name]</span></p></div></div>
@@ -1245,7 +1288,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       <ul class="feature-list">
         <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><strong>Set your own hourly rate</strong> and change it whenever you like.</span></li>
         <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><strong>Students pay upfront</strong> and we hold the money securely, so you never chase payments.</span></li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><strong>Get paid after each lesson.</strong> Once a lesson is completed, your earnings are released to your bank account within 24 hours.</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><strong>Get paid after each lesson.</strong> Once a lesson is completed, your earnings are released to your bank account <span class="placeholder">[Add payout timing, e.g. within 2 working days]</span>.</span></li>
         <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><strong>Just 10%.</strong> TutorED takes 10% of each lesson fee and you keep the other 90%. No joining fee and no monthly charge.</span></li>
       </ul>
     </div>
@@ -1324,7 +1367,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
         <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.4 8.2 8 9 4.6-.8 8-4.5 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg><span><strong>Identity.</strong> Upload your national identity card (NIC) or passport.</span></li>
         <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2.5Z"/><path d="M8 7h8M8 11h6"/></svg><span><strong>Qualifications.</strong> Upload your degree, teaching diploma or relevant certificates.</span></li>
         <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z"/></svg><span><strong>Language proficiency (optional).</strong> Add IELTS, TOEFL or other language certificates to show students how well you teach in English, Sinhala or Tamil.</span></li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span><strong>Review.</strong> Our team checks your documents, usually within 2 working days.</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span><strong>Review.</strong> Our team checks your documents, usually within <span class="placeholder">[Add review time, e.g. 2 working days]</span>.</span></li>
         <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><strong>Go live.</strong> Your profile appears in search with a verified badge.</span></li>
       </ul>
       <p class="card-muted" style="font-size:var(--fs-sm)">Your documents are stored securely and are never shown to students. See our <a href="#privacy">Privacy policy</a>.</p>
@@ -3198,12 +3241,13 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     day: todayKey(), tutorFilter: "mine", findQuery: "", packSubject: "all", packType: "all", packMine: false,
     unsubs: [], roleUnsubs: [], loaded: false, timer: null, settingsDirty: false,
     flash: "", flashErr: false,
+    chat: [], chatPeer: null, chatDraft: "", chatLoaded: false, chatErr: "", chatMobileThread: false,
   };
 
   function unsubscribe(list) { list.splice(0).forEach((u) => { try { u(); } catch {} }); }
   function reset() {
     unsubscribe(D.unsubs); unsubscribe(D.roleUnsubs);
-    Object.assign(D, { id: null, acct: null, role: null, tab: "overview", tutors: [], tutorDoc: null, bookings: [], loaded: false, settingsDirty: false, flash: "" });
+    Object.assign(D, { id: null, acct: null, role: null, tab: "overview", tutors: [], tutorDoc: null, bookings: [], loaded: false, settingsDirty: false, flash: "", chat: [], chatPeer: null, chatDraft: "", chatLoaded: false, chatErr: "", chatMobileThread: false });
   }
 
   function flash(text, err) { D.flash = text; D.flashErr = !!err; const el = $("#dash-flash"); if (el) { el.textContent = text; el.classList.toggle("err", !!err); } }
@@ -3262,6 +3306,15 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       D.roleUnsubs.push(S.db.doc("tutors/" + D.id).onSnapshot((snap) => { D.tutorDoc = snap.exists ? snap.data() : null; render(); }, err));
       D.roleUnsubs.push(S.db.collection("bookings").where("tutorId", "==", D.id).limit(1000).onSnapshot((snap) => { D.bookings = snap.docs.map((d) => ({ id: d.id, ...d.data() })); render(); }, err));
     }
+    if (chatOn()) {
+      const load = () => window.TutorEDChat.list().then((rows) => {
+        D.chat = rows; D.chatLoaded = true; D.chatErr = "";
+        if (D.tab === "messages" && D.chatPeer && !document.hidden) markThreadRead();
+        render();
+      }).catch((e) => { D.chatErr = friendlyError(e).message; D.chatLoaded = true; render(); });
+      D.roleUnsubs.push(window.TutorEDChat.subscribe(load));
+      load();
+    }
   }
 
   /* ====================================================================
@@ -3299,8 +3352,8 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
   /* ====================================================================
      RENDER
      ==================================================================== */
-  const STUDENT_TABS = [["overview", "Overview"], ["calendar", "Calendar"], ["tutors", "My tutors"], ["packs", "Study packs"], ["settings", "Account settings"]];
-  const TUTOR_TABS = [["overview", "Overview"], ["calendar", "Calendar"], ["students", "My students"], ["settings", "Profile & settings"]];
+  const STUDENT_TABS = [["overview", "Overview"], ["calendar", "Calendar"], ["tutors", "My tutors"], ["messages", "Messages"], ["packs", "Study packs"], ["settings", "Account settings"]];
+  const TUTOR_TABS = [["overview", "Overview"], ["calendar", "Calendar"], ["students", "My students"], ["messages", "Messages"], ["settings", "Profile & settings"]];
 
   function renderLoading() {
     $("#dash-hello").textContent = "Loading your dashboard…";
@@ -3326,12 +3379,20 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     $("#dash-role").innerHTML = `<span class="chip">${roleLabel}</span>${D.acct.sample ? ' <span class="tag tag--sample">Sample</span>' : ""}${D.role === "tutor" ? ` <span class="pill pill--${esc(st)}">${esc({ pending: "Waiting for verification", approved: "Verified", rejected: "Not approved", info_requested: "More info needed" }[st] || st)}</span>` : ""}`;
     $("#dash-admin-note").hidden = !S.isAdmin;
     const tabsEl = $("#dash-tabs");
-    const want = tabs.map(([k, l]) => `<button role="tab" type="button" class="admin-tab" data-dash-tab="${k}" aria-selected="${k === D.tab}" tabindex="${k === D.tab ? 0 : -1}">${l}${k === "calendar" ? ` <span class="count">${upcoming().length}</span>` : ""}</button>`).join("");
+    const want = tabs.map(([k, l]) => `<button role="tab" type="button" class="admin-tab" data-dash-tab="${k}" aria-selected="${k === D.tab}" tabindex="${k === D.tab ? 0 : -1}">${l}${k === "calendar" ? ` <span class="count">${upcoming().length}</span>` : ""}${k === "messages" && unreadTotal() ? ` <span class="count count--alert">${unreadTotal()}<span class="visually-hidden"> unread</span></span>` : ""}</button>`).join("");
     if (tabsEl.innerHTML !== want) tabsEl.innerHTML = want;
     const panel = $("#dash-panel");
     if (D.tab === "settings" && D.settingsDirty) return; // don't wipe what they're typing
-    panel.innerHTML = PANELS[D.role === "tutor" ? "tutor" : "student"][D.tab]();
+    const typing = document.activeElement && document.activeElement.id === "chat-input";
+    const oldThread = $("#chat-thread");
+    const nearBottom = !oldThread || oldThread.scrollHeight - oldThread.scrollTop - oldThread.clientHeight < 80;
+    const html = PANELS[D.role === "tutor" ? "tutor" : "student"][D.tab]();
+    if (panel.innerHTML !== html) panel.innerHTML = html;
     const f = $("#dash-flash"); if (f) { f.textContent = D.flash; f.classList.toggle("err", D.flashErr); }
+    if (D.tab === "messages") {
+      const th = $("#chat-thread"); if (th && nearBottom) th.scrollTop = th.scrollHeight;
+      const inp = $("#chat-input"); if (inp && typing) { inp.focus(); const n = inp.value.length; try { inp.setSelectionRange(n, n); } catch {} }
+    }
   }
 
   /* ---------- Shared bits ---------- */
@@ -3466,6 +3527,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
           <span class="chip chip--ok" style="align-self:flex-start">Verified tutor</span>
           <footer><span class="price">${esc(lkr(t.rate))}${t.rate ? "/hr" : ""}</span><div class="btn-row">
             <button class="btn btn--sm btn--primary" type="button" data-book-with="${esc(t.id)}">Book</button>
+            ${chatOn() ? `<button class="btn btn--sm btn--outline" type="button" data-chat-with="${esc(t.id)}">Message</button>` : ""}
             ${isSaved ? `<button class="btn btn--sm btn--ghost" type="button" data-unsave="${esc(t.id)}">Remove</button>` : `<button class="btn btn--sm btn--outline" type="button" data-save="${esc(t.id)}">Add to my tutors</button>`}</div></footer></article>`;
       };
       return `<section><div class="card-head"><h2 class="h-card">My tutors</h2></div>
@@ -3583,14 +3645,14 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     students() {
       const by = {};
       myLessons().filter((b) => b.status === "confirmed").forEach((b) => {
-        const s = (by[b.studentId] = by[b.studentId] || { name: b.studentName || "Student", lessons: 0, next: null, last: null, subjects: new Set() });
+        const s = (by[b.studentId] = by[b.studentId] || { id: b.studentId, name: b.studentName || "Student", lessons: 0, next: null, last: null, subjects: new Set() });
         s.lessons++; s.subjects.add(b.subject);
         if (!isPast(b.start) && (!s.next || b.start < s.next)) s.next = b.start;
         if (isPast(b.start) && (!s.last || b.start > s.last)) s.last = b.start;
       });
       const rows = Object.values(by);
-      return rows.length ? `<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Student</th><th scope="col">Subjects</th><th scope="col">Lessons</th><th scope="col">Next lesson</th><th scope="col">Last lesson</th></tr></thead><tbody>
-          ${rows.map((s) => `<tr><td><strong>${esc(s.name)}</strong></td><td>${esc([...s.subjects].join(", "))}</td><td>${s.lessons}</td><td class="nowrap">${s.next ? esc(fmtDate(s.next)) : "—"}</td><td class="nowrap muted">${s.last ? esc(fmtDate(s.last)) : "—"}</td></tr>`).join("")}</tbody></table></div>`
+      return rows.length ? `<div class="table-wrap"><table class="table"><thead><tr><th scope="col">Student</th><th scope="col">Subjects</th><th scope="col">Lessons</th><th scope="col">Next lesson</th><th scope="col">Last lesson</th>${chatOn() ? `<th scope="col"><span class="visually-hidden">Message</span></th>` : ""}</tr></thead><tbody>
+          ${rows.map((s) => `<tr><td><strong>${esc(s.name)}</strong></td><td>${esc([...s.subjects].join(", "))}</td><td>${s.lessons}</td><td class="nowrap">${s.next ? esc(fmtDate(s.next)) : "—"}</td><td class="nowrap muted">${s.last ? esc(fmtDate(s.last)) : "—"}</td>${chatOn() ? `<td><button class="btn btn--sm btn--outline" type="button" data-chat-with="${esc(s.id)}">Message</button></td>` : ""}</tr>`).join("")}</tbody></table></div>`
         : `<div class="card"><p class="empty">No students yet. Once a student books one of your open times, they appear here.</p></div>`;
     },
 
@@ -3640,6 +3702,129 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     }[st] || "";
     return text ? `<div class="banner banner--${esc(st)}" role="note">${esc(text)}</div>` : "";
   }
+
+
+  /* ====================================================================
+     MESSAGES (chat between students and tutors; no booking needed)
+     Rows come from the chat_messages table via window.TutorEDChat.
+     ==================================================================== */
+  const chatOn = () => !!(X.HOSTED && window.TutorEDChat && D.id && D.id === S.uid);
+  const peerOf = (m) => (D.role === "tutor" ? m.student_id : m.tutor_id);
+  const unreadTotal = () => D.chat.filter((m) => m.sender_id !== D.id && !m.read_at).length;
+  const fmtChatTime = (iso) => {
+    const d = new Date(iso);
+    return dayKey(d) === todayKey() ? fmtTime(iso) : d.toLocaleDateString(undefined, { day: "numeric", month: "short" }) + ", " + fmtTime(iso);
+  };
+  function peerName(peerId) {
+    if (D.role === "student") {
+      const t = tutorById(peerId); if (t && t.name) return t.name;
+      const m = D.chat.filter((x) => x.tutor_id === peerId && x.tutor_name).pop(); return (m && m.tutor_name) || "Tutor";
+    }
+    const m = D.chat.filter((x) => x.student_id === peerId && x.student_name).pop(); if (m) return m.student_name;
+    const b = D.bookings.find((x) => x.studentId === peerId && x.studentName); return (b && b.studentName) || "Student";
+  }
+  function threads() {
+    const by = {};
+    D.chat.forEach((m) => {
+      const p = peerOf(m);
+      const t = (by[p] = by[p] || { peer: p, last: null, unread: 0 });
+      t.last = m;
+      if (m.sender_id !== D.id && !m.read_at) t.unread++;
+    });
+    const list = Object.values(by).sort((a, b) => b.last.created_at.localeCompare(a.last.created_at));
+    if (D.chatPeer && !by[D.chatPeer]) list.unshift({ peer: D.chatPeer, last: null, unread: 0 });
+    return list;
+  }
+  // People you can start a new conversation with
+  function chatContacts() {
+    const have = new Set(D.chat.map(peerOf));
+    if (D.role === "student") return D.tutors.filter((t) => t.id !== D.id && !have.has(t.id)).map((t) => [t.id, t.name + (t.subjects ? " · " + t.subjects : "")]);
+    const seen = {};
+    D.bookings.forEach((b) => { if (b.studentId && b.studentId !== D.id && !have.has(b.studentId)) seen[b.studentId] = b.studentName || "Student"; });
+    return Object.entries(seen);
+  }
+  function markThreadRead() {
+    if (!D.chatPeer || !chatOn()) return;
+    const st = D.role === "tutor" ? D.chatPeer : D.id, tu = D.role === "tutor" ? D.id : D.chatPeer;
+    const any = D.chat.some((m) => m.student_id === st && m.tutor_id === tu && m.sender_id !== D.id && !m.read_at);
+    if (!any) return;
+    const now = new Date().toISOString();
+    D.chat.forEach((m) => { if (m.student_id === st && m.tutor_id === tu && m.sender_id !== D.id && !m.read_at) m.read_at = now; });
+    window.TutorEDChat.markRead(st, tu).catch(() => {});
+  }
+  function openChat(peerId) {
+    D.tab = "messages"; D.chatPeer = peerId; D.chatMobileThread = true; D.chatDraft = ""; D.flash = "";
+    markThreadRead(); render();
+    requestAnimationFrame(() => { const i = $("#chat-input"); if (i) i.focus(); });
+  }
+  async function sendChat() {
+    const body = D.chatDraft.trim();
+    if (!body) throw new Error("Type a message first.");
+    if (!D.chatPeer) throw new Error("Choose who to message first.");
+    const me = D.acct.name || acctName();
+    const msg = D.role === "tutor"
+      ? { studentId: D.chatPeer, tutorId: D.id, studentName: peerName(D.chatPeer), tutorName: me, body }
+      : { studentId: D.id, tutorId: D.chatPeer, studentName: me, tutorName: peerName(D.chatPeer), body };
+    const keep = D.chatDraft; D.chatDraft = "";
+    try { await window.TutorEDChat.send(msg); }
+    catch (e) { D.chatDraft = keep; throw e; }
+    D.flash = "";
+    return "";
+  }
+
+  function chatPanel() {
+    if (!chatOn()) return `<div class="card"><h2 class="h-card">Messages</h2><p class="empty">${X.HOSTED ? "Log out and back in to use messages." : "Messages work on the live site. They aren't available in this test view."}</p></div>`;
+    if (!D.chatLoaded) return `<div class="card"><p class="empty">Loading your messages…</p></div>`;
+    const list = threads();
+    const contacts = chatContacts();
+    const other = D.role === "tutor" ? "student" : "tutor";
+    const startBox = contacts.length ? `<form class="chat-start" id="chat-start" novalidate><label for="chat-new" class="section-label">New message to a ${other}</label>
+        <div class="chat-start-row"><select id="chat-new"><option value="">Choose a ${other}</option>${contacts.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("")}</select><button class="btn btn--sm btn--outline" type="submit">Start</button></div></form>`
+      : D.role === "tutor" && !list.length ? `<p class="card-muted small">Students can message you from your profile. You can also message any student who has booked you.</p>` : "";
+    const items = list.map((t) => {
+      const name = peerName(t.peer);
+      const preview = t.last ? (t.last.sender_id === D.id ? "You: " : "") + t.last.body : "New conversation";
+      return `<li><button type="button" class="chat-item${t.peer === D.chatPeer ? " is-active" : ""}" data-chat-open="${esc(t.peer)}" aria-current="${t.peer === D.chatPeer}">
+        <span class="avatar" aria-hidden="true">${esc(initials(name))}</span>
+        <span class="chat-item-text"><strong>${esc(name)}</strong><small>${esc(preview.length > 60 ? preview.slice(0, 60) + "…" : preview)}</small></span>
+        <span class="chat-item-meta">${t.last ? `<small>${esc(fmtChatTime(t.last.created_at))}</small>` : ""}${t.unread ? `<span class="count count--alert">${t.unread}<span class="visually-hidden"> unread</span></span>` : ""}</span></button></li>`;
+    }).join("");
+    const side = `<div class="card chat-list">
+        <h2 class="h-card">Conversations</h2>
+        ${D.chatErr ? `<p class="form-msg err">${esc(D.chatErr)}</p>` : ""}
+        ${list.length ? `<ul class="chat-items">${items}</ul>` : `<p class="empty">No messages yet.${D.role === "student" ? " Message any tutor to ask about lessons before you book." : ""}</p>`}
+        ${startBox}</div>`;
+    let main;
+    if (!D.chatPeer) {
+      main = `<div class="card chat-main chat-main--empty"><p class="empty">Pick a conversation${contacts.length ? " or start a new one" : ""}.</p></div>`;
+    } else {
+      const st = D.role === "tutor" ? D.chatPeer : D.id, tu = D.role === "tutor" ? D.id : D.chatPeer;
+      const msgs = D.chat.filter((m) => m.student_id === st && m.tutor_id === tu);
+      const name = peerName(D.chatPeer);
+      let lastDay = "";
+      const bubbles = msgs.map((m) => {
+        const k = keyOfIso(m.created_at);
+        const sep = k !== lastDay ? `<li class="chat-day"><span>${esc(fmtLongDay(k))}</span></li>` : "";
+        lastDay = k;
+        const mine = m.sender_id === D.id;
+        return `${sep}<li class="bubble${mine ? " bubble--me" : ""}"><p>${esc(m.body)}</p><small>${esc(fmtTime(m.created_at))}${mine && m.read_at ? " · Seen" : ""}</small></li>`;
+      }).join("");
+      main = `<div class="card chat-main">
+        <div class="chat-head"><button class="btn btn--ghost btn--sm chat-back" type="button" data-chat-back aria-label="Back to conversations">‹ Back</button>
+          <span class="avatar" aria-hidden="true">${esc(initials(name))}</span><h2 class="h-card">${esc(name)}</h2></div>
+        <p class="chat-note">For your safety, keep lessons and payments on TutorED. Don't share bank details.</p>
+        <ul class="chat-thread" id="chat-thread" aria-live="polite" aria-label="Messages with ${esc(name)}">${bubbles || `<li class="empty">No messages yet. Say hello.</li>`}</ul>
+        <form class="chat-compose" id="chat-form" novalidate>
+          <label for="chat-input" class="visually-hidden">Message ${esc(name)}</label>
+          <textarea id="chat-input" rows="2" maxlength="2000" placeholder="Write a message" autocomplete="off">${esc(D.chatDraft)}</textarea>
+          <button class="btn btn--primary" type="submit">Send</button>
+        </form>
+        <p class="form-msg" id="dash-flash" role="status" aria-live="polite"></p></div>`;
+    }
+    return `<div class="chat${D.chatPeer && D.chatMobileThread ? " show-thread" : ""}">${side}${main}</div>`;
+  }
+  student.messages = chatPanel;
+  tutor.messages = chatPanel;
 
   const PANELS = { student, tutor };
 
@@ -3758,7 +3943,9 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       const t = e.target.closest("button");
       if (!t || t.disabled) return;
       const d = t.dataset;
-      if (d.dashTab) { D.tab = d.dashTab; D.settingsDirty = false; D.flash = ""; return render(); }
+      if (d.dashTab) { D.tab = d.dashTab; D.settingsDirty = false; D.flash = ""; if (D.tab === "messages") { D.chatMobileThread = false; markThreadRead(); } return render(); }
+      if (d.chatWith || d.chatOpen) return openChat(d.chatWith || d.chatOpen);
+      if (t.hasAttribute("data-chat-back")) { D.chatMobileThread = false; return render(); }
       if (d.goTab) { D.tab = d.goTab; D.settingsDirty = false; D.flash = ""; render(); return window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" }); }
       if (d.month) { D.month = new Date(D.month.getFullYear(), D.month.getMonth() + Number(d.month), 1); return render(); }
       if (t.hasAttribute("data-today")) { const n = new Date(); D.month = new Date(n.getFullYear(), n.getMonth(), 1); D.day = todayKey(); return render(); }
@@ -3789,6 +3976,9 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       if (t.hasAttribute("data-delete-account-yes")) { t.disabled = true; return run(deleteAccount); }
     });
     root.addEventListener("keydown", (e) => {
+      if (e.target.id === "chat-input" && e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+        e.preventDefault(); const f = $("#chat-form"); if (f) f.requestSubmit(); return;
+      }
       const t = e.target.closest("[data-dash-tab]");
       if (!t) return;
       const tabs = $$("[data-dash-tab]");
@@ -3812,6 +4002,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
         const f = $("#dash-find"); if (f) { f.focus(); try { f.setSelectionRange(pos, pos); } catch {} }
         return;
       }
+      if (e.target.id === "chat-input") { D.chatDraft = e.target.value; return; }
       if (e.target.closest("#dash-settings")) D.settingsDirty = true;
     });
     root.addEventListener("submit", (e) => {
@@ -3820,10 +4011,16 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       if (f.id === "slot-form") return run(() => addSlots(f));
       if (f.id === "doc-form") return run(() => addDocs());
       if (f.id === "dash-settings") { D.settingsDirty = false; return run(() => saveSettings(f)); }
+      if (f.id === "chat-form") {
+        const b = $("button[type=submit]", f); if (b) b.disabled = true;
+        return sendChat().then(() => { D.flash = ""; }).catch((err) => flash(friendlyError(err).message, true)).finally(() => { render(); requestAnimationFrame(() => { const i = $("#chat-input"); if (i) i.focus(); }); });
+      }
+      if (f.id === "chat-start") { const v = $("#chat-new", f).value; if (!v) { flash("Choose who to message.", true); return; } return openChat(v); }
     });
   }
 
   bind();
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && D.tab === "messages") { markThreadRead(); render(); } });
   window.TutorEDDash = { enter, reset };
 })();
 
