@@ -628,6 +628,7 @@ h1, h2, h3 { text-wrap: balance; }
 .pill--resolved { background: var(--surface-2); color: var(--text-muted); }
 .tag { display: inline-block; padding: 2px 8px; border-radius: 6px; background: var(--surface-2); font-size: 0.75rem; font-weight: 600; color: var(--text); }
 .tag--sample { background: var(--warn-bg); color: var(--warn); }
+.tag--admin { background: #1f2937; color: #fff; letter-spacing: .02em; }
 
 /* Toolbar, segmented filters */
 .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
@@ -1544,6 +1545,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
           <p class="form-msg" role="status" aria-live="polite"></p>
       </form>
       <p class="auth-foot">New to TutorED? <a href="#signup-student">Sign up as a student</a> or <a href="#signup-tutor">as a tutor</a></p>
+      <p class="auth-foot">Site admin? <a href="#admin">Admin sign-in</a></p>
     </div>
   </div>
 </section>
@@ -1749,6 +1751,12 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     <div class="card admin-gate" id="admin-gate" role="status" aria-live="polite">
       <h2 id="admin-gate-title">Checking access</h2>
       <p class="card-muted" id="admin-gate-text">One moment while we confirm you're an admin.</p>
+      <form class="form" id="admin-login" hidden novalidate style="max-width:360px;margin:16px 0">
+        <div class="field"><label for="al-email">Admin email</label><input id="al-email" type="email" autocomplete="email" required></div>
+        <div class="field"><label for="al-pw">Password</label><input id="al-pw" type="password" autocomplete="current-password" required></div>
+        <button class="btn btn--dark btn--block" type="submit">Admin sign-in</button>
+        <p class="form-msg" id="al-msg" role="status" aria-live="polite"></p>
+      </form>
       <div class="btn-row" id="admin-gate-actions" hidden>
         <a class="btn btn--outline" href="#home">Back to the website</a>
       </div>
@@ -1809,6 +1817,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
                 <button type="button" class="seg-btn" data-su-filter="all" aria-pressed="true">All</button>
                 <button type="button" class="seg-btn" data-su-filter="student" aria-pressed="false">Students</button>
                 <button type="button" class="seg-btn" data-su-filter="tutor" aria-pressed="false">Tutors</button>
+                <button type="button" class="seg-btn" data-su-filter="admin" aria-pressed="false">Admins</button>
               </div>
               <label class="search"><span class="visually-hidden">Search sign-ups</span>
                 <input type="search" id="su-search" placeholder="Search name, email, phone, subject">
@@ -2804,7 +2813,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
   const pill = (s) => `<span class="pill pill--${esc(s)}">${esc(STATUS_LABEL[s] || s)}</span>`;
 
   const A = {
-    started: false, rows: [], msgs: [], profiles: {},
+    started: false, rows: [], msgs: [], profiles: {}, admins: [],
     lessons: 0, tab: "overview", suFilter: "all", suSearch: "", vFilter: "pending", mFilter: "new",
     selected: null, // signup id open in detail
     loaded: { signups: false, messages: false },
@@ -2824,8 +2833,29 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       if (!S.isAdmin) {
         $("#admin-who").textContent = "Admins only.";
         $("#admin-gate-title").textContent = "This area is for TutorED admins";
-        $("#admin-gate-text").textContent = "You need admin access to see sign-ups and verify tutors. Ask the site owner to add you as an Editor.";
+        $("#admin-gate-text").textContent = HOSTED ? "Sign in with an admin account. It doesn't need a student or tutor profile." : "You need admin access to see sign-ups and verify tutors. Ask the site owner to add you as an Editor.";
         $("#admin-gate-actions").hidden = false; gate.hidden = false; app.hidden = true;
+        const form = $("#admin-login");
+        if (HOSTED && form) {
+          form.hidden = false;
+          if (!form.dataset.bound) {
+            form.dataset.bound = "1";
+            form.addEventListener("submit", async (e) => {
+              e.preventDefault();
+              const msg = $("#al-msg"), btn = $("button", form);
+              msg.className = "form-msg"; msg.textContent = "Signing in…"; btn.disabled = true;
+              try {
+                await Auth.signIn($("#al-email").value.trim().toLowerCase(), $("#al-pw").value);
+                await identify();
+                if (!S.isAdmin) { await Auth.signOut(); await identify(); throw new Error("That account isn't an admin."); }
+                $("#al-pw").value = ""; msg.textContent = "";
+                try { Login.refresh(); } catch (e2) {}
+                Admin.enter();
+              } catch (err) { msg.className = "form-msg err"; msg.textContent = friendlyError(err).message; }
+              btn.disabled = false;
+            });
+          }
+        }
         return;
       }
       gate.hidden = true; app.hidden = false;
@@ -2856,6 +2886,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       render();
     }, (e) => setStatus("Couldn't load messages: " + friendlyError(e).message, true));
     bindAdminUi();
+    if (window.TutorEDAdmin) window.TutorEDAdmin.admins().then((l) => { A.admins = l; render(); }).catch(() => {});
     render();
   }
 
@@ -2913,23 +2944,33 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       : `<li class="empty">No sign-ups yet. Try the sign-up page, or add sample data below.</li>`;
   }
 
+  const adminIds = () => new Set((A.admins || []).map((a) => a.user_id));
   function filteredSignups() {
-    const q = A.suSearch.toLowerCase();
-    return A.rows.filter((r) => (A.suFilter === "all" || r.role === A.suFilter) &&
-      (!q || [nameOf(r), emailOf(r), r.phone, r.subjects, r.level].filter(Boolean).join(" ").toLowerCase().includes(q)));
+    const q = A.suSearch.toLowerCase(), ids = adminIds();
+    const match = (r) => !q || [nameOf(r), emailOf(r), r.phone, r.subjects, r.level].filter(Boolean).join(" ").toLowerCase().includes(q);
+    const have = new Set(A.rows.map((r) => r.id));
+    const list = A.rows.filter((r) => (A.suFilter === "all" || (A.suFilter === "admin" ? ids.has(r.id) : r.role === A.suFilter)) && match(r));
+    // Admin accounts that never made a student or tutor profile still get a row.
+    if (A.suFilter === "all" || A.suFilter === "admin") {
+      (A.admins || []).filter((a) => !have.has(a.user_id)).forEach((a) => {
+        const r = { id: a.user_id, name: a.email, email: a.email, role: "admin", status: "active", adminOnly: true };
+        if (match(r)) list.unshift(r);
+      });
+    }
+    return list;
   }
 
   function renderSignups() {
     const rows = filteredSignups();
     $("#su-body").innerHTML = rows.map((r) => `<tr class="${A.selected === r.id && A.tab === "signups" ? "is-selected" : ""}">
-      <td><strong>${esc(nameOf(r))}</strong>${r.sample ? ' <span class="tag tag--sample">Sample</span>' : ""}</td>
-      <td>${r.role === "tutor" ? "Tutor" : "Student"}</td>
+      <td><strong>${esc(nameOf(r))}</strong>${adminIds().has(r.id) ? ' <span class="tag tag--admin">Admin</span>' : ""}${r.sample ? ' <span class="tag tag--sample">Sample</span>' : ""}</td>
+      <td>${r.adminOnly ? "Admin" : r.role === "tutor" ? "Tutor" : "Student"}</td>
       <td class="nowrap">${esc(METHOD_LABEL[r.method] || r.method)}</td>
       <td>${esc(contactOf(r))}</td>
       <td>${esc(levelOf(r))}</td>
       <td>${pill(r.status)}</td>
       <td class="nowrap muted">${esc(fmtDay(r.createdAt))}</td>
-      <td><button class="btn btn--sm btn--outline" type="button" data-open="${esc(r.id)}" aria-label="View ${esc(nameOf(r))}">View</button></td></tr>`).join("");
+      <td class="nowrap">${r.adminOnly ? '<span class="muted">Admin account</span>' : `<button class="btn btn--sm btn--outline" type="button" data-open="${esc(r.id)}" aria-label="View ${esc(nameOf(r))}">View</button>${adminIds().has(r.id) || r.id === S.uid ? "" : ` <button class="btn btn--sm btn--ghost danger-text" type="button" data-row-delete="${esc(r.id)}" aria-label="Delete ${esc(nameOf(r))}">Delete</button>`}`}</td></tr>`).join("");
     const empty = $("#su-empty");
     empty.hidden = rows.length > 0;
     empty.textContent = A.rows.length ? "No sign-ups match this filter." : "No sign-ups yet. They appear here the moment someone signs up.";
@@ -2991,8 +3032,8 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
         : '<button class="btn btn--outline" type="button" data-decide="suspended">Suspend account</button>'}</div><p class="form-msg" data-decide-msg role="status" aria-live="polite"></p>`;
     }
     html += `<div><p class="section-label">History</p><ul class="history">${hist.map((h) => `<li><time datetime="${esc(h.at)}">${esc(fmtDate(h.at))}</time><span>${esc(h.action)}${h.note ? ` — ${esc(h.note)}` : ""}</span></li>`).join("")}</ul></div>
-      <div class="btn-row"><button class="btn btn--dark btn--sm" type="button" data-view-as="${esc(r.id)}">Open their dashboard</button><button class="btn btn--ghost danger-text btn--sm" type="button" data-delete>Delete this sign-up</button></div>
-      <div class="confirm" data-delete-confirm hidden><p><strong>Delete ${esc(nameOf(r))}'s sign-up?</strong> Their uploaded documents are deleted too. This can't be undone.</p>
+      <div class="btn-row"><button class="btn btn--dark btn--sm" type="button" data-view-as="${esc(r.id)}">Open their dashboard</button><button class="btn btn--ghost danger-text btn--sm" type="button" data-delete>Delete this account</button></div>
+      <div class="confirm" data-delete-confirm hidden><p><strong>Delete ${esc(nameOf(r))}'s account?</strong> Their profile, bookings, chat messages, uploaded documents and login are all deleted. This can't be undone.</p>
         <div class="btn-row"><button class="btn btn--danger btn--sm" type="button" data-delete-yes>Delete</button><button class="btn btn--outline btn--sm" type="button" data-delete-no>Cancel</button></div></div>
     </div>`;
     return html;
@@ -3056,11 +3097,11 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     if (!r) return;
     try {
       if (S.assets) for (const d of r.docs || []) { try { await S.assets.delete(d.assetId); } catch {} }
-      await S.db.doc("signups/" + id).delete();
-      try { await S.db.doc("tutors/" + id).delete(); } catch {}
+      if (HOSTED && window.TutorEDAdmin) await window.TutorEDAdmin.deleteUser(id);
+      else { await S.db.doc("signups/" + id).delete(); try { await S.db.doc("tutors/" + id).delete(); } catch {} }
       if (Session.get() === id) Session.clear();
       A.selected = null;
-      setStatus(`Deleted ${nameOf(r)}'s sign-up.`);
+      setStatus(`Deleted ${nameOf(r)}'s account.`);
     } catch (e) { setStatus(friendlyError(e).message, true); }
   }
 
@@ -3187,6 +3228,11 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       if (t.dataset.open) {
         A.selected = t.dataset.open; render();
         requestAnimationFrame(() => { const d = $("#su-detail .detail"); if (d) d.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" }); });
+        return;
+      }
+      if (t.dataset.rowDelete) {
+        const rr = A.rows.find((x) => x.id === t.dataset.rowDelete);
+        if (rr && window.confirm("Delete " + nameOf(rr) + "'s account? Their profile, bookings, messages, documents and login are all deleted. This can't be undone.")) { t.disabled = true; deleteSignup(rr.id); }
         return;
       }
       if (t.dataset.select) { A.selected = t.dataset.select; return render(); }
