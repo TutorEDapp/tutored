@@ -891,6 +891,10 @@ button.tile:hover { border-color: var(--ink); }
 .chat-item .avatar { width: 38px; height: 38px; font-size: 0.85rem; }
 .chat-item-text { flex: 1; min-width: 0; display: grid; }
 .chat-item-text strong { font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-who { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.chat-who strong { min-width: 0; }
+.chat-who .tag { flex: none; padding: 1px 7px; font-size: 0.6875rem; }
+.chat-head .chat-who { flex: 1; }
 .chat-item-text small, .chat-item-meta small { color: var(--text-muted); font-size: 0.8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-item-meta { display: grid; justify-items: end; gap: 4px; flex-shrink: 0; }
 .chat-start { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
@@ -4203,6 +4207,7 @@ button.tile:hover { border-color: var(--ink); }
     const list = threads();
     const contacts = chatContacts();
     const other = D.role === "tutor" ? "student" : "tutor";
+    const roleTag = other === "student" ? "Student" : "Tutor";
     const startBox = contacts.length ? `<form class="chat-start" id="chat-start" novalidate><label for="chat-new" class="section-label">New message to a ${other}</label>
         <div class="chat-start-row"><select id="chat-new"><option value="">Choose a ${other}</option>${contacts.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("")}</select><button class="btn btn--sm btn--outline" type="submit">Start</button></div></form>`
       : D.role === "tutor" && !list.length ? `<p class="card-muted small">Students can message you from your profile. You can also message any student who has booked you.</p>` : "";
@@ -4211,7 +4216,7 @@ button.tile:hover { border-color: var(--ink); }
       const preview = t.last ? (t.last.sender_id === D.id ? "You: " : "") + t.last.body : "New conversation";
       return `<li><button type="button" class="chat-item${t.peer === D.chatPeer ? " is-active" : ""}" data-chat-open="${esc(t.peer)}" aria-current="${t.peer === D.chatPeer}">
         <span class="avatar" aria-hidden="true">${esc(initials(name))}</span>
-        <span class="chat-item-text"><strong>${esc(name)}</strong><small>${esc(preview.length > 60 ? preview.slice(0, 60) + "…" : preview)}</small></span>
+        <span class="chat-item-text"><span class="chat-who"><strong>${esc(name)}</strong><span class="tag">${esc(roleTag)}</span></span><small>${esc(preview.length > 60 ? preview.slice(0, 60) + "…" : preview)}</small></span>
         <span class="chat-item-meta">${t.last ? `<small>${esc(fmtChatTime(t.last.created_at))}</small>` : ""}${t.unread ? `<span class="count count--alert">${t.unread}<span class="visually-hidden"> unread</span></span>` : ""}</span></button></li>`;
     }).join("");
     const side = `<div class="card chat-list">
@@ -4236,7 +4241,7 @@ button.tile:hover { border-color: var(--ink); }
       }).join("");
       main = `<div class="card chat-main">
         <div class="chat-head"><button class="btn btn--ghost btn--sm chat-back" type="button" data-chat-back aria-label="Back to conversations">‹ Back</button>
-          <span class="avatar" aria-hidden="true">${esc(initials(name))}</span><h2 class="h-card">${esc(name)}</h2></div>
+          <span class="avatar" aria-hidden="true">${esc(initials(name))}</span><span class="chat-who"><h2 class="h-card">${esc(name)}</h2><span class="tag">${esc(roleTag)}</span></span></div>
         <p class="chat-note">For your safety, keep lessons and payments on TutorED. Don't share bank details.</p>
         <ul class="chat-thread" id="chat-thread" aria-live="polite" aria-label="Messages with ${esc(name)}">${bubbles || `<li class="empty">No messages yet. Say hello.</li>`}</ul>
         <form class="chat-compose" id="chat-form" novalidate>
