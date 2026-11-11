@@ -1068,7 +1068,7 @@ button.tile:hover { border-color: var(--ink); }
         <p>Create a free account in under two minutes. Sign up with email, Google or your phone number.</p>
       </div>
       <div class="btn-row">
-        <a class="btn btn--dark btn--lg" href="#signup-student">Sign up as a student</a>
+        <a class="btn btn--dark btn--lg" href="#signup-student" data-after-login="overview">Sign up as a student</a>
         <a class="btn btn--outline btn--lg" href="#signup-tutor">Sign up as a tutor</a>
       </div>
     </div>
@@ -1144,7 +1144,7 @@ button.tile:hover { border-color: var(--ink); }
 
     <p class="card-muted" style="margin:0">Sign up or log in to see every verified tutor, with their subjects, rates and open times.</p>
     <div class="btn-row" style="margin-top:24px">
-      <a class="btn btn--primary btn--lg" href="#signup-student">Browse all tutors</a>
+      <a class="btn btn--primary btn--lg" href="#signup-student" data-after-login="browse">Browse all tutors</a>
     </div>
   </div>
 </section>
@@ -1160,16 +1160,16 @@ button.tile:hover { border-color: var(--ink); }
     <div class="grid grid-3">
       <article class="card resource"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2.5Z"/><path d="M8 7h8M8 11h6"/></svg></div><h3>Study packs</h3>
         <ul><li>Short notes by unit</li><li>Worked examples</li><li>Key formulas and definitions</li></ul>
-        <a class="btn btn--outline" href="#signup-student">View study packs</a></article>
+        <a class="btn btn--outline" href="#signup-student" data-after-login="packs">View study packs</a></article>
       <article class="card resource"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div><h3>Past paper bundles</h3>
         <ul><li>O/L and Pearson Edexcel A/L papers by year</li><li>Marking schemes</li><li>Topic-by-topic question sets</li></ul>
-        <a class="btn btn--outline" href="#signup-student">View past papers</a></article>
+        <a class="btn btn--outline" href="#signup-student" data-after-login="packs">View past papers</a></article>
       <article class="card resource"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></div><h3>Practice resources</h3>
         <ul><li>Timed practice tests</li><li>Revision checklists</li><li>Tutor-made worksheets</li></ul>
-        <a class="btn btn--outline" href="#signup-student">Start practising</a></article>
+        <a class="btn btn--outline" href="#signup-student" data-after-login="packs">Start practising</a></article>
     </div>
     <div class="btn-row" style="margin-top:28px">
-      <a class="btn btn--primary btn--lg" href="#signup-student">Get study packs</a>
+      <a class="btn btn--primary btn--lg" href="#signup-student" data-after-login="packs">Get study packs</a>
     </div>
   </div>
 </section>
@@ -1187,7 +1187,7 @@ button.tile:hover { border-color: var(--ink); }
         <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18h2"/></svg><span><strong>Phone number.</strong> We text you a one-time code. No password needed.</span></li>
       </ul>
       <div class="btn-row">
-        <a class="btn btn--primary" href="#signup-student">Create student account</a>
+        <a class="btn btn--primary" href="#signup-student" data-after-login="overview">Create student account</a>
         <a class="btn btn--outline" href="#login">Log in</a>
       </div>
     </div>
@@ -1242,7 +1242,7 @@ button.tile:hover { border-color: var(--ink); }
 <section class="section">
   <div class="container"><div class="cta-band">
     <div><h2>Find your tutor today</h2><p>Free to join. Book your first lesson in minutes.</p></div>
-    <a class="btn btn--dark btn--lg" href="#signup-student">Sign up as a student</a>
+    <a class="btn btn--dark btn--lg" href="#signup-student" data-after-login="overview">Sign up as a student</a>
   </div></div>
 </section>
 
@@ -2511,6 +2511,14 @@ button.tile:hover { border-color: var(--ink); }
     $$("[data-session-hide]").forEach((el) => (el.hidden = on));
   }
   function goDashboard(delay = 1100) { setTimeout(() => { location.hash = "dashboard"; }, delay); }
+  // Buttons that normally lead to sign-up take people who are already logged in straight to the right dashboard tab.
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest && e.target.closest("a[data-after-login]");
+    if (!a || !Session.get() || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    e.preventDefault();
+    if (window.TutorEDDash) window.TutorEDDash.openTab(a.dataset.afterLogin);
+    if (location.hash === "#dashboard") window.TutorEDDash.enter(); else location.hash = "dashboard";
+  });
   document.addEventListener("click", (e) => {
     const b = e.target.closest("[data-logout]");
     if (!b) return;
@@ -3433,7 +3441,7 @@ button.tile:hover { border-color: var(--ink); }
     id: null, acct: null, role: null, tab: "overview",
     tutors: [], tutorDoc: null, bookings: [],
     month: (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })(),
-    day: todayKey(), tutorFilter: "mine", findQuery: "", packSubject: "all", packType: "all", packMine: false,
+    day: todayKey(), tutorFilter: "mine", findQuery: "", findSubject: "", packSubject: "all", packType: "all", packMine: false,
     unsubs: [], roleUnsubs: [], loaded: false, timer: null, settingsDirty: false,
     flash: "", flashErr: false,
     chat: [], chatPeer: null, chatDraft: "", chatLoaded: false, chatErr: "", chatMobileThread: false,
@@ -3570,7 +3578,7 @@ button.tile:hover { border-color: var(--ink); }
   /* ====================================================================
      RENDER
      ==================================================================== */
-  const STUDENT_TABS = [["overview", "Overview"], ["calendar", "Calendar"], ["tutors", "My tutors"], ["assignments", "Assignments"], ["messages", "Messages"], ["packs", "Study packs"], ["settings", "Account settings"]];
+  const STUDENT_TABS = [["overview", "Overview"], ["calendar", "Calendar"], ["browse", "Browse tutors"], ["tutors", "My tutors"], ["assignments", "Assignments"], ["messages", "Messages"], ["packs", "Study packs"], ["settings", "Account settings"]];
   const TUTOR_TABS = [["overview", "Overview"], ["calendar", "Calendar"], ["students", "My students"], ["messages", "Messages"], ["settings", "Profile & settings"]];
 
   function renderLoading() {
@@ -3581,6 +3589,7 @@ button.tile:hover { border-color: var(--ink); }
   }
 
   let queued = false;
+  let wantTab = null; // a tab to open as soon as the dashboard is ready (set by buttons on the public pages)
   // Fields the person has touched (picked files, typed text). A re-render keeps them, so a picked file isn't lost.
   const touched = new Set();
   let touchedView = "";
@@ -3609,6 +3618,7 @@ button.tile:hover { border-color: var(--ink); }
   function draw() {
     if (!D.acct || $("#dash-app").hidden) return;
     const tabs = D.role === "tutor" ? TUTOR_TABS : STUDENT_TABS;
+    if (wantTab) { const w = wantTab; wantTab = null; if (tabs.some(([k]) => k === w)) { D.tab = w; D.student = null; D.settingsDirty = false; D.flash = ""; } }
     if (!tabs.some(([k]) => k === D.tab)) D.tab = "overview";
     $("#dash-hello").textContent = `Hi, ${acctName().split(" ")[0]}`;
     const roleLabel = D.role === "tutor" ? "Tutor account" : "Student account";
@@ -3736,8 +3746,8 @@ button.tile:hover { border-color: var(--ink); }
         <div class="admin-cols">
           <div class="card"><div class="card-head"><h2 class="h-card">Coming up</h2><button class="link-btn" type="button" data-go-tab="calendar">Open calendar</button></div>
             ${up.length ? `<ul class="lessons">${up.slice(0, 4).map((b) => lessonItem(b, { actions: false })).join("")}</ul>` : `<p class="empty">No lessons yet. Book one from your calendar.</p>`}</div>
-          <div class="card"><div class="card-head"><h2 class="h-card">My tutors</h2><button class="link-btn" type="button" data-go-tab="tutors">Manage</button></div>
-            ${savedIds().length ? `<ul class="list">${savedIds().map(tutorById).filter(Boolean).map((t) => `<li>${avatarHtml(t.name, t.photo)}<div class="grow"><strong>${esc(t.name)}</strong><small>${esc(t.subjects)}</small></div><button class="btn btn--sm btn--outline" type="button" data-book-with="${esc(t.id)}">Book</button></li>`).join("")}</ul>` : `<p class="empty">You haven't added any tutors yet.</p><button class="btn btn--outline btn--sm" type="button" data-go-tab="tutors">Find a tutor</button>`}</div>
+          <div class="card"><div class="card-head"><h2 class="h-card">My tutors</h2><span><button class="link-btn" type="button" data-go-tab="browse">Browse tutors</button> · <button class="link-btn" type="button" data-go-tab="tutors">Manage</button></span></div>
+            ${savedIds().length ? `<ul class="list">${savedIds().map(tutorById).filter(Boolean).map((t) => `<li>${avatarHtml(t.name, t.photo)}<div class="grow"><strong>${esc(t.name)}</strong><small>${esc(t.subjects)}</small></div><button class="btn btn--sm btn--outline" type="button" data-book-with="${esc(t.id)}">Book</button></li>`).join("")}</ul>` : `<p class="empty">You haven't added any tutors yet.</p><button class="btn btn--outline btn--sm" type="button" data-go-tab="browse">Browse tutors</button>`}</div>
         </div>`;
     },
 
@@ -3774,27 +3784,27 @@ button.tile:hover { border-color: var(--ink); }
       const saved = savedIds().map(tutorById).filter(Boolean);
       const q = D.findQuery.toLowerCase();
       const others = D.tutors.filter((t) => !savedIds().includes(t.id) && (!q || `${t.name} ${t.subjects} ${t.languages}`.toLowerCase().includes(q)));
-      const card = (t, isSaved) => {
-        const nx = nextOpenFor(t);
-        const quals = qualLines(t);
-        const shared = D.work.filter((w) => w.kind !== "homework" && w.tutorId === t.id).sort((x, y) => String(y.createdAt || "").localeCompare(String(x.createdAt || "")));
-        const hw = homework().filter((w) => w.tutorId === t.id && w.status === "incomplete").length;
-        return `<article class="card tutor-card"><header>${avatarHtml(t.name, t.photo)}<div><h3>${esc(t.name)}</h3><span class="meta">${esc(t.subjects || "")}</span><span class="chip chip--ok">Verified tutor</span></div></header>
-          <div><p class="section-label">Qualifications</p>${quals.length ? `<ul class="tutor-quals">${quals.map((q) => `<li>${esc(q)}</li>`).join("")}</ul>` : `<p class="meta" style="margin:0">Not added yet.</p>`}</div>
-          ${t.bio ? `<p class="meta" style="margin:0">${esc(t.bio)}</p>` : ""}
-          <p class="meta" style="margin:0">${t.languages ? esc(t.languages) + " · " : ""}${nx ? "Next open: " + esc(fmtShort(nx.start)) + ", " + esc(fmtTime(nx.start)) : "No open times right now"}</p>
-          ${shared.length || hw ? `<div class="tutor-shared">${shared.length ? `<p class="section-label">Documents from ${esc(String(t.name || "your tutor").split(" ")[0])}</p><ul class="work-files">${shared.map((w) => (w.files || []).map((f, i) => `<li><button class="btn btn--sm btn--outline" type="button" data-work-file="${esc(w.id)}|task|${i}">Download</button><span><strong>${esc(w.title)}</strong>${(w.files || []).length > 1 ? " · " + esc(f.name) : ""}${w.note && i === 0 ? " · " + esc(w.note) : ""}</span></li>`).join("")).join("")}</ul>` : ""}
-            ${hw ? `<button class="link-btn" type="button" data-go-tab="assignments">${hw} assignment${hw === 1 ? "" : "s"} to hand in</button>` : ""}</div>` : ""}
-          <footer><span class="price">${esc(lkr(t.rate))}${t.rate ? "/hr" : ""}</span><div class="btn-row">
-            ${chatOn() ? `<button class="btn btn--sm btn--outline" type="button" data-chat-with="${esc(t.id)}">Contact</button>` : ""}
-            <button class="btn btn--sm btn--primary" type="button" data-book-with="${esc(t.id)}">Book</button></div></footer>
-          <div class="tutor-save">${isSaved ? `<button class="link-btn" type="button" data-unsave="${esc(t.id)}">Remove from my tutors</button>` : `<button class="link-btn" type="button" data-save="${esc(t.id)}">Add to my tutors</button>`}</div></article>`;
-      };
+      const card = tutorCard;
       return `<section><div class="card-head"><h2 class="h-card">My tutors</h2></div>
           ${saved.length ? `<div class="grid grid-3">${saved.map((t) => card(t, true)).join("")}</div>` : `<div class="card"><p class="empty">No tutors yet. Add one below and they'll show here, with their open times on your calendar.</p></div>`}</section>
-        <section><div class="toolbar"><h2 class="h-card" style="margin:0">Find tutors</h2>
-          <label class="search"><span class="visually-hidden">Search tutors</span><input type="search" id="dash-find" placeholder="Search by name, subject or language" value="${esc(D.findQuery)}"></label></div>
-          ${others.length ? `<div class="grid grid-3" style="margin-top:16px">${others.map((t) => card(t, false)).join("")}</div>` : `<div class="card" style="margin-top:16px"><p class="empty">${D.tutors.length ? "No other tutors match." : "No verified tutors yet. Tutors appear here once an admin approves them."}</p></div>`}</section>
+        <div class="card"><div class="card-head"><div><h2 class="h-card">Looking for more tutors?</h2><p class="card-muted small" style="margin:4px 0 0">${D.tutors.length ? `${D.tutors.length} verified tutor${D.tutors.length === 1 ? " is" : "s are"} available.` : "Verified tutors appear here once they're approved."}</p></div><button class="btn btn--primary" type="button" data-go-tab="browse">Browse tutors</button></div></div>
+        <p class="form-msg" id="dash-flash" role="status" aria-live="polite"></p>`;
+    },
+    browse() {
+      const q = D.findQuery.toLowerCase();
+      const subjects = [...new Set(D.tutors.flatMap((t) => String(t.subjects || "").split(",").map((x) => x.trim()).filter(Boolean)))].sort((a, b) => a.localeCompare(b));
+      if (D.findSubject && !subjects.includes(D.findSubject)) D.findSubject = "";
+      const list = D.tutors.filter((t) => (!q || `${t.name} ${t.subjects} ${t.languages}`.toLowerCase().includes(q))
+        && (!D.findSubject || String(t.subjects || "").split(",").some((x) => x.trim() === D.findSubject)))
+        .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+      const saved = savedIds();
+      return `<section><div class="toolbar"><h2 class="h-card" style="margin:0">Browse tutors</h2>
+          <div class="btn-row" style="flex-wrap:wrap">
+            <label class="search"><span class="visually-hidden">Search tutors</span><input type="search" id="dash-find" placeholder="Search by name, subject or language" value="${esc(D.findQuery)}"></label>
+            <label class="visually-hidden" for="dash-find-subject">Subject</label>
+            <select id="dash-find-subject"><option value="">All subjects</option>${subjects.map((x) => `<option value="${esc(x)}"${x === D.findSubject ? " selected" : ""}>${esc(x)}</option>`).join("")}</select></div></div>
+          <p class="card-muted small" style="margin:8px 0 0">${D.tutors.length ? `Showing ${list.length} of ${D.tutors.length} verified tutor${D.tutors.length === 1 ? "" : "s"}. Tap Book to pick a time, or Add to my tutors to keep them handy.` : ""}</p>
+          ${list.length ? `<div class="grid grid-3" style="margin-top:16px">${list.map((t) => tutorCard(t, saved.includes(t.id))).join("")}</div>` : `<div class="card" style="margin-top:16px"><p class="empty">${D.tutors.length ? "No tutors match. Try a different search or subject." : "No verified tutors yet. Tutors appear here once an admin approves them."}</p></div>`}</section>
         <p class="form-msg" id="dash-flash" role="status" aria-live="polite"></p>`;
     },
 
@@ -4277,6 +4287,22 @@ button.tile:hover { border-color: var(--ink); }
   student.messages = chatPanel;
   tutor.messages = chatPanel;
 
+  function tutorCard(t, isSaved) {
+      const nx = nextOpenFor(t);
+      const quals = qualLines(t);
+      const shared = D.work.filter((w) => w.kind !== "homework" && w.tutorId === t.id).sort((x, y) => String(y.createdAt || "").localeCompare(String(x.createdAt || "")));
+      const hw = homework().filter((w) => w.tutorId === t.id && w.status === "incomplete").length;
+      return `<article class="card tutor-card"><header>${avatarHtml(t.name, t.photo)}<div><h3>${esc(t.name)}</h3><span class="meta">${esc(t.subjects || "")}</span><span class="chip chip--ok">Verified tutor</span></div></header>
+        <div><p class="section-label">Qualifications</p>${quals.length ? `<ul class="tutor-quals">${quals.map((q) => `<li>${esc(q)}</li>`).join("")}</ul>` : `<p class="meta" style="margin:0">Not added yet.</p>`}</div>
+        ${t.bio ? `<p class="meta" style="margin:0">${esc(t.bio)}</p>` : ""}
+        <p class="meta" style="margin:0">${t.languages ? esc(t.languages) + " · " : ""}${nx ? "Next open: " + esc(fmtShort(nx.start)) + ", " + esc(fmtTime(nx.start)) : "No open times right now"}</p>
+        ${shared.length || hw ? `<div class="tutor-shared">${shared.length ? `<p class="section-label">Documents from ${esc(String(t.name || "your tutor").split(" ")[0])}</p><ul class="work-files">${shared.map((w) => (w.files || []).map((f, i) => `<li><button class="btn btn--sm btn--outline" type="button" data-work-file="${esc(w.id)}|task|${i}">Download</button><span><strong>${esc(w.title)}</strong>${(w.files || []).length > 1 ? " · " + esc(f.name) : ""}${w.note && i === 0 ? " · " + esc(w.note) : ""}</span></li>`).join("")).join("")}</ul>` : ""}
+          ${hw ? `<button class="link-btn" type="button" data-go-tab="assignments">${hw} assignment${hw === 1 ? "" : "s"} to hand in</button>` : ""}</div>` : ""}
+        <footer><span class="price">${esc(lkr(t.rate))}${t.rate ? "/hr" : ""}</span><div class="btn-row">
+          ${chatOn() ? `<button class="btn btn--sm btn--outline" type="button" data-chat-with="${esc(t.id)}">Contact</button>` : ""}
+          <button class="btn btn--sm btn--primary" type="button" data-book-with="${esc(t.id)}">Book</button></div></footer>
+        <div class="tutor-save">${isSaved ? `<button class="link-btn" type="button" data-unsave="${esc(t.id)}">Remove from my tutors</button>` : `<button class="link-btn" type="button" data-save="${esc(t.id)}">Add to my tutors</button>`}</div></article>`;
+  }
   const PANELS = { student, tutor };
 
   /* ====================================================================
@@ -4555,6 +4581,7 @@ button.tile:hover { border-color: var(--ink); }
     root.addEventListener("change", touch, true);
     root.addEventListener("change", (e) => {
       if (e.target.id === "dash-tutor-filter") { D.tutorFilter = e.target.value; D.flash = ""; render(); }
+      if (e.target.id === "dash-find-subject") { D.findSubject = e.target.value; D.flash = ""; render(); }
       if (e.target.id === "pack-mine") { D.packMine = e.target.checked; render(); }
       if (e.target.id === "ds-photo") {
         const file = e.target.files && e.target.files[0];
@@ -4617,7 +4644,7 @@ button.tile:hover { border-color: var(--ink); }
   document.addEventListener("visibilitychange", () => { if (!document.hidden && D.tab === "messages") { markThreadRead(); render(); } });
   // Re-check the clock so Join buttons switch on by themselves 10 minutes before a lesson.
   setInterval(() => { if (D.acct && !document.hidden && !$("#dash-app").hidden && D.bookings.length && !(D.tab === "settings" && D.settingsDirty)) render(); }, 20000);
-  window.TutorEDDash = { enter, reset };
+  window.TutorEDDash = { enter, reset, openTab(t) { wantTab = t; if (D.acct && !$("#dash-app").hidden) render(); } };
 })();
 
 </script>
