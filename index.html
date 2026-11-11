@@ -2140,10 +2140,27 @@ button.tile:hover { border-color: var(--ink); }
   const toggle = $(".nav-toggle");
   const menu = $("#mobile-menu");
   if (toggle && menu) {
+    const setOpen = (on) => {
+      toggle.setAttribute("aria-expanded", String(on));
+      toggle.setAttribute("aria-label", on ? "Close menu" : "Open menu");
+      menu.classList.toggle("is-open", on);
+    };
+    // With a mouse the menu opens when the pointer is on the button and closes when it leaves the header.
+    // On touch screens it still opens and closes with a tap.
+    const hoverMode = window.matchMedia("(hover: hover) and (pointer: fine)");
+    let closeTimer = null;
+    const header = toggle.closest(".site-header") || menu.parentElement;
+    toggle.addEventListener("mouseenter", () => { if (!hoverMode.matches) return; clearTimeout(closeTimer); setOpen(true); });
+    header.addEventListener("mouseenter", () => { clearTimeout(closeTimer); });
+    header.addEventListener("mouseleave", () => {
+      if (!hoverMode.matches || !menu.classList.contains("is-open")) return;
+      clearTimeout(closeTimer);
+      closeTimer = setTimeout(() => setOpen(false), 250);
+    });
     toggle.addEventListener("click", () => {
       const open = toggle.getAttribute("aria-expanded") === "true";
-      toggle.setAttribute("aria-expanded", String(!open));
-      menu.classList.toggle("is-open", !open);
+      // With a mouse the hover already opened it, so a click should not shut it again.
+      setOpen(hoverMode.matches ? true : !open);
     });
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && menu.classList.contains("is-open")) {
