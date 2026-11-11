@@ -707,14 +707,6 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 
 .opt { font-weight: 500; color: var(--text-muted); }
 
-/* Email confirmation code box */
-.otp-dialog { border: 1px solid var(--line); border-radius: 16px; padding: 28px; width: min(440px, calc(100vw - 32px)); background: var(--surface, #fff); color: var(--ink); box-shadow: 0 24px 60px rgba(20,22,31,0.25); }
-.otp-dialog::backdrop { background: rgba(20,22,31,0.55); }
-.otp-dialog h2 { margin: 0; font-size: 1.375rem; }
-.otp-dialog #otp-code { font-size: 1.5rem; letter-spacing: 0.3em; text-align: center; font-variant-numeric: tabular-nums; }
-.otp-dialog .btn-row { justify-content: space-between; }
-.otp-dialog #otp-email { overflow-wrap: anywhere; }
-
 /* ---------- Account dashboards ---------- */
 .dash .admin-top .btn-row { align-items: center; }
 .dash-tabs-wrap { overflow-x: auto; margin: -8px -8px 20px; padding: 8px 8px 0; border-bottom: 1px solid var(--line); }
@@ -1516,7 +1508,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
           <div class="field"><label for="l-email">Email address</label><input id="l-email" type="email" autocomplete="email" required></div>
           <div class="field"><label for="l-pw">Password</label>
             <input id="l-pw" type="password" autocomplete="current-password"  required></div>
-        <p style="margin:0;font-size:var(--fs-sm)"><a href="#contact">Forgot your password?</a> <span class="placeholder">[Add password reset page]</span></p>
+        <p style="margin:0;font-size:var(--fs-sm)"><a href="#forgot-password">Forgot your password?</a></p>
         <button class="btn btn--primary btn--block btn--lg" type="submit">Log in</button>
         <p class="form-msg" data-submit-msg role="status" aria-live="polite"></p>
       </form>
@@ -1552,6 +1544,44 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
   <p id="admin-entry-text">Checking admin access…</p>
   <a class="btn btn--dark" id="admin-entry-btn" href="#admin" hidden>Open admin dashboard</a>
 </div></div>
+</div>
+<div data-route="set-password" hidden>
+
+<section class="section">
+  <div class="container auth-wrap">
+    <div class="auth-card">
+      <h1>Choose your password</h1>
+      <p class="card-muted" id="sp-intro">Set a password for <strong id="sp-email">your account</strong>. You'll use it with your email address to log in from now on.</p>
+      <form class="form" data-form="set-password" data-demo="Password saved." novalidate>
+        <div class="field"><label for="sp-pw">New password</label>
+          <input id="sp-pw" type="password" autocomplete="new-password" minlength="8" pattern="(?=.*[0-9]).{8,}" aria-describedby="sp-pwhint" required><span class="hint" id="sp-pwhint">At least 8 characters, with one number.</span></div>
+        <div class="field"><label for="sp-pw2">Type it again</label>
+          <input id="sp-pw2" type="password" autocomplete="new-password" required></div>
+        <button class="btn btn--primary btn--block btn--lg" type="submit">Save password</button>
+        <p class="form-msg" data-submit-msg role="status" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+</section>
+
+</div>
+<div data-route="forgot-password" hidden>
+
+<section class="section">
+  <div class="container auth-wrap">
+    <div class="auth-card">
+      <h1>Reset your password</h1>
+      <p class="card-muted">Enter the email you log in with. We'll send you a link to choose a new password.</p>
+      <form class="form" data-form="forgot-password" data-demo="Check your email for the reset link." novalidate>
+        <div class="field"><label for="fp-email">Email address</label><input id="fp-email" type="email" autocomplete="email" required></div>
+        <button class="btn btn--primary btn--block btn--lg" type="submit">Send reset link</button>
+        <p class="form-msg" data-submit-msg role="status" aria-live="polite"></p>
+      </form>
+      <p class="auth-foot">Remembered it? <a href="#login">Log in</a></p>
+    </div>
+  </div>
+</section>
+
 </div>
 <div data-route="about" hidden>
 
@@ -2254,6 +2284,8 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     "signup-student": ["signup", "Sign up · TutorED"],
     "signup-tutor": ["signup", "Sign up as a tutor · TutorED"],
     login: ["login", "Log in · TutorED"],
+    "set-password": ["set-password", "Choose your password · TutorED"],
+    "forgot-password": ["forgot-password", "Reset your password · TutorED"],
     about: ["about", "About · TutorED"],
     contact: ["contact", "Contact · TutorED"],
     terms: ["terms", "Terms · TutorED"],
@@ -2280,6 +2312,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     if (section === "admin") Admin.enter();
     if (section === "dashboard" && window.TutorEDDash) window.TutorEDDash.enter();
     if (section === "login") Login.refresh();
+    if (section === "set-password") SetPassword.refresh();
     window.scrollTo(0, 0);
   }
 
@@ -2325,7 +2358,8 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
           if (!Session.get()) { try { const own = await db.doc("signups/" + S.uid).get(); if (own.exists) Session.set(S.uid); } catch (e) {} }
         }
         const back = window.TutorEDAuthReturn || {};
-        if (back.error) setTimeout(() => { location.hash = "login"; setTimeout(() => { const m = $("[data-form='login-email'] [data-submit-msg]"); if (m) { m.textContent = "That confirmation link has expired or was already used. Log in, or sign up again to get a new link."; m.classList.add("err"); } }, 300); }, 0);
+        if (back.setPassword && S.uid && !back.error) setTimeout(() => { location.hash = "set-password"; }, 0);
+        else if (back.error) setTimeout(() => { location.hash = "login"; setTimeout(() => { const m = $("[data-form='login-email'] [data-submit-msg]"); if (m) { m.textContent = "That link has expired or was already used. Log in, use \"Forgot your password?\" for a new link, or sign up again."; m.classList.add("err"); } }, 300); }, 0);
         else if (back.ok && S.uid && Session.get()) setTimeout(() => { location.hash = "dashboard"; }, 0);
         if (Auth.needsConfirm) Auth.needsConfirm().then((need) => { if (need) confirmMode(); });
         $$("[data-tab='google'], [data-tab='phone']").forEach((el) => (el.hidden = true));
@@ -2357,7 +2391,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     const step = document.getElementById("t-id") && document.getElementById("t-id").closest("[data-step]");
     if (step && !step.querySelector("[data-confirm-note]")) {
       const h = step.querySelector("h2"); if (h) h.textContent = "Step 2: Confirm and submit";
-      const p = step.querySelector("p"); if (p) { p.setAttribute("data-confirm-note", ""); p.textContent = "We'll email you a code to confirm your address. After that, upload your ID and qualifications from your dashboard so we can verify you."; }
+      const p = step.querySelector("p"); if (p) { p.setAttribute("data-confirm-note", ""); p.textContent = "We'll email you a link to confirm your address. After you log in, upload your ID and qualifications from your dashboard so we can verify you."; }
       const c = step.querySelector("label.check span"); if (c) c.textContent = "I confirm the documents I upload will be genuine and belong to me.";
       const b = step.querySelector("button[type=submit]"); if (b) b.textContent = "Create my tutor account";
     }
@@ -2428,57 +2462,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     await identify();
     return res; // { confirm: true } when the person must confirm their email first
   }
-  const CONFIRM_MSG = "Almost done. We've emailed you a confirmation code. Enter it in the box to finish creating your account.";
-
-  /* ---------- Email code box (hosted site) ---------- */
-  function openOtp(email) {
-    let d = $("#otp-dialog");
-    if (!d) {
-      d = document.createElement("dialog");
-      d.id = "otp-dialog"; d.className = "otp-dialog";
-      d.setAttribute("aria-labelledby", "otp-title");
-      d.innerHTML = `<form class="form" novalidate>
-        <h2 id="otp-title">Check your email</h2>
-        <p class="card-muted">We sent a confirmation code to <strong id="otp-email"></strong>. Enter it below to finish. Check your spam folder if you can't find it.</p>
-        <div class="field"><label for="otp-code">Confirmation code</label>
-          <input id="otp-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" pattern="[0-9]*" required></div>
-        <p class="form-msg" id="otp-msg" role="status" aria-live="polite"></p>
-        <button class="btn btn--primary btn--block btn--lg" type="submit">Confirm and continue</button>
-        <div class="btn-row"><button class="btn btn--ghost" type="button" id="otp-resend">Send a new code</button><button class="btn btn--ghost" type="button" id="otp-close">Close</button></div>
-      </form>`;
-      document.body.appendChild(d);
-      const msg = (t, err) => { const m = $("#otp-msg"); m.textContent = t || ""; m.classList.toggle("err", !!err); };
-      $("#otp-close").addEventListener("click", () => d.close());
-      $("#otp-resend").addEventListener("click", async (e) => {
-        const b = e.currentTarget; b.disabled = true;
-        try { await Auth.resend(d.dataset.email); msg("We've sent a new code. It can take a minute to arrive."); }
-        catch (err) { msg(err.message, true); }
-        setTimeout(() => { b.disabled = false; }, 30000);
-      });
-      $("form", d).addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const code = $("#otp-code").value.replace(/\D/g, "");
-        if (code.length < 6) return msg("Enter the full code from the email.", true);
-        const btn = $("button[type=submit]", d); btn.disabled = true; msg("Checking…");
-        try {
-          await Auth.verify(d.dataset.email, code);
-          await identify();
-          await ensureProfile();
-          const own = await S.db.doc("signups/" + S.uid).get();
-          d.close();
-          if (own.exists) { Session.set(S.uid); location.hash = "dashboard"; }
-          else if (S.isAdmin) location.hash = "admin";
-          else location.hash = "signup-student";
-        } catch (err) { msg(err.message || "That code didn't work. Try again.", true); }
-        btn.disabled = false;
-      });
-    }
-    d.dataset.email = email;
-    $("#otp-email").textContent = email;
-    $("#otp-code").value = ""; $("#otp-msg").textContent = "";
-    if (d.showModal) d.showModal(); else d.setAttribute("open", "");
-    setTimeout(() => $("#otp-code").focus(), 50);
-  }
+  const CONFIRM_MSG = "Almost done. We've sent a confirmation link to your email. Open it to finish creating your account. Check your spam folder if you don't see it.";
 
   async function saveSignup(data) {
     const at = nowIso();
@@ -2537,7 +2521,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
     async "student-email"() {
       if (HOSTED) {
         const r = await hostedSignUp(val("s-email").toLowerCase(), $("#s-pw").value, { role: "student", method: "email", name: val("s-name"), level: val("s-level") });
-        if (r && r.confirm) { openOtp(val("s-email").toLowerCase()); return CONFIRM_MSG; }
+        if (r && r.confirm) return CONFIRM_MSG;
       }
       await needDb();
       const id = await saveSignup({ role: "student", method: "email", name: val("s-name"), email: val("s-email").toLowerCase(), level: val("s-level") });
@@ -2560,7 +2544,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       if (HOSTED) {
         if (method !== "email") throw new Error("Sign up with email for now. Google and phone sign-up are coming soon.");
         const r = await hostedSignUp(base.email, $("#t-pw").value, { role: "tutor", method: "email", name: base.name, subjects: base.subjects });
-        if (r && r.confirm) { openOtp(base.email); return CONFIRM_MSG + " After that, upload your ID and qualifications from your dashboard."; }
+        if (r && r.confirm) return CONFIRM_MSG + " After you log in, upload your ID and qualifications from your dashboard.";
       }
       await needDb();
       const idDocs = await uploadFiles($("#t-id"), "id");
@@ -2578,14 +2562,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       const email = val("l-email").toLowerCase();
       if (HOSTED) {
         await ready;
-        try { await Auth.signIn(email, $("#l-pw").value); }
-        catch (e) {
-          if (!/confirm your email/i.test(e.message || "")) throw e;
-          // Right password, but the address was never confirmed: send a fresh code and ask for it.
-          try { await Auth.resend(email); } catch (e2) {}
-          openOtp(email);
-          throw new Error("Your email isn't confirmed yet. We've sent you a new code. Enter it in the box to continue.");
-        }
+        await Auth.signIn(email, $("#l-pw").value);
         await identify();
         try { await ensureProfile(); } catch (e) {}
         const own = await S.db.doc("signups/" + S.uid).get();
@@ -2598,6 +2575,29 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
       if (!found) throw new Error("No test account uses that email yet. Sign up first.");
       Session.set(found.id); goDashboard(900);
       return `Logged in as ${found.name || "this account"}. Opening your dashboard… (Test mode doesn't check passwords.)`;
+    },
+    async "set-password"() {
+      if (!HOSTED) throw new Error("Passwords are only stored on the live site.");
+      await ready;
+      const pw = $("#sp-pw").value, pw2 = $("#sp-pw2").value;
+      if (pw !== pw2) throw new Error("The two passwords don't match. Type them again.");
+      await Auth.setPassword(pw);
+      const back = window.TutorEDAuthReturn || {};
+      back.setPassword = false;
+      await identify();
+      let own = null;
+      try { own = await S.db.doc("signups/" + S.uid).get(); } catch (e) {}
+      if (own && own.exists) { Session.set(S.uid); goDashboard(1200); return "Password saved. Opening your dashboard…"; }
+      if (S.isAdmin) { setTimeout(() => { location.hash = "admin"; }, 1200); return "Password saved. Opening the admin dashboard…"; }
+      return "Password saved. You can now log in with your email and this password.";
+    },
+    async "forgot-password"() {
+      if (!HOSTED) throw new Error("Password reset works on the live site only.");
+      await ready;
+      const email = val("fp-email").toLowerCase();
+      if (!email) throw new Error("Enter your email address.");
+      await Auth.sendReset(email);
+      return "If that email has a TutorED account, we've sent a link to reset the password. Check your spam folder if you can't find it.";
     },
     async "login-phone"(form) {
       checkOtp(form, "lp-otp");
@@ -2677,6 +2677,23 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
         ? (HOSTED ? "You're logged in with an admin account." : "You're signed in to claude.ai as this page's owner, so you're the admin.")
         : "Admin access is limited to the site owner and the people they add.";
       $("#admin-entry-btn").hidden = !S.isAdmin;
+    },
+  };
+
+  // Set-password page: shows which account the password is for, or explains the link has expired.
+  const SetPassword = {
+    async refresh() {
+      await ready;
+      const form = $("[data-form='set-password']"), intro = $("#sp-intro");
+      if (!form || !intro) return;
+      const me = S.user && S.uid ? await S.user.me() : {};
+      form.hidden = !S.uid;
+      if (S.uid) {
+        intro.innerHTML = `Set a password for <strong>${esc(me.email || "your account")}</strong>. You'll use it with your email address to log in from now on.`;
+        setTimeout(() => { const f = $("#sp-pw"); if (f) f.focus(); }, 50);
+      } else {
+        intro.innerHTML = `This link has expired or was already used. <a href="#forgot-password">Send yourself a new link</a>, or <a href="#login">log in</a>.`;
+      }
     },
   };
 
@@ -3509,8 +3526,8 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 
   function accountExtras() {
     return `<div class="admin-cols">
-        <div class="card"><h2 class="h-card">Password</h2><p class="card-muted">Signed up with ${esc({ email: "email and password", google: "Google", phone: "a phone code" }[D.acct.method] || D.acct.method)}. ${X.HOSTED ? "Password changes are coming soon." : "Changing passwords works in the live site. Test mode doesn't store passwords."}</p>
-          <button class="btn btn--outline btn--sm" type="button" disabled>Change password</button></div>
+        <div class="card"><h2 class="h-card">Password</h2><p class="card-muted">Signed up with ${esc({ email: "email and password", google: "Google", phone: "a phone code" }[D.acct.method] || D.acct.method)}. ${X.HOSTED ? "You can choose a new password at any time." : "Changing passwords works in the live site. Test mode doesn't store passwords."}</p>
+          ${X.HOSTED ? `<a class="btn btn--outline btn--sm" href="#set-password">Change password</a>` : `<button class="btn btn--outline btn--sm" type="button" disabled>Change password</button>`}</div>
         <div class="card"><h2 class="h-card">Delete account</h2><p class="card-muted">Removes your account and cancels your upcoming lessons.</p>
           <button class="btn btn--ghost danger-text btn--sm" type="button" data-delete-account>Delete my account</button>
           <div class="confirm" id="del-confirm" hidden><p><strong>Delete your account?</strong> This can't be undone.</p>
