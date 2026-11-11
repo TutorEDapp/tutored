@@ -327,6 +327,43 @@
     async remove(path) { const { error } = await sb.storage.from(STUDY).remove([path]); if (error) throw nice(error); },
   };
 
+  /* ---------- Tutor profile photos (public, shown on tutor cards) ---------- */
+  window.TutorEDAvatar = {
+    // Stores the photo and returns its web address. The old photo, if any, is removed.
+    async upload(blob, oldUrl) {
+      await sessionReady;
+      if (!uid()) throw new Error("Log in before uploading a photo.");
+      const path = uid() + "/photo-" + Date.now().toString(36) + ".jpg";
+      const { error } = await sb.storage.from("avatars").upload(path, blob, { contentType: "image/jpeg", upsert: false });
+      if (error) throw nice(error, "The photo couldn't be uploaded.");
+      const mark = "/object/public/avatars/";
+      const at = String(oldUrl || "").indexOf(mark);
+      if (at >= 0) { try { await sb.storage.from("avatars").remove([decodeURIComponent(oldUrl.slice(at + mark.length))]); } catch (e) {} }
+      return sb.storage.from("avatars").getPublicUrl(path).data.publicUrl;
+    },
+  };
+
+  /* ---------- Homework and documents between a tutor and a student ----------
+     Files live under <tutor id>/<student id>/ so only those two people (and admins) can open them. */
+  window.TutorEDClassFiles = {
+    async upload(file, tutorId, studentId, prefix) {
+      await sessionReady;
+      if (!uid()) throw new Error("Log in before uploading files.");
+      const safe = String(file.name || "file").replace(/[^A-Za-z0-9._-]+/g, "_").slice(-80);
+      const path = tutorId + "/" + studentId + "/" + (prefix || "file") + "-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8) + "-" + safe;
+      const { error } = await sb.storage.from("class-files").upload(path, file, { contentType: file.type || "application/octet-stream", upsert: false });
+      if (error) throw nice(error, "The file couldn't be uploaded.");
+      return { path, name: file.name || "file", size: file.size };
+    },
+    // A private link that works for one hour.
+    async url(path) {
+      const { data, error } = await sb.storage.from("class-files").createSignedUrl(path, 3600);
+      if (error) throw nice(error, "That file couldn't be opened.");
+      return data.signedUrl;
+    },
+    async remove(paths) { const { error } = await sb.storage.from("class-files").remove(paths); if (error) throw nice(error); },
+  };
+
   // Admin-only helpers: list admin accounts and fully delete an account (profile, bookings, login).
   window.TutorEDAdmin = {
     async admins() { const { data, error } = await sb.rpc("admin_list"); if (error) throw nice(error); return data || []; },
