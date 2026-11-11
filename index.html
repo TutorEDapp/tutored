@@ -3581,6 +3581,25 @@ button.tile:hover { border-color: var(--ink); }
   }
 
   let queued = false;
+  // Fields the person has touched (picked files, typed text). A re-render keeps them, so a picked file isn't lost.
+  const touched = new Set();
+  let touchedView = "";
+  const NO_KEEP = new Set(["chat-input", "dash-find"]);
+  function swapHtml(el, html, outer) {
+    const keep = [];
+    $$("input, select, textarea", el).forEach((n) => {
+      if (n.id && touched.has(n.id)) keep.push([n.id, n.type === "file" ? n.files : null, n.value, n.checked]);
+    });
+    if (outer) el.outerHTML = html; else el.innerHTML = html;
+    keep.forEach(([id, files, value, checked]) => {
+      const n = document.getElementById(id);
+      if (!n) return;
+      if (n.type === "file") { if (files && files.length) { try { n.files = files; } catch {} } }
+      else if (n.type === "checkbox" || n.type === "radio") n.checked = checked;
+      else n.value = value;
+    });
+  }
+  function forget(form) { if (form) $$("input, select, textarea", form).forEach((n) => touched.delete(n.id)); }
   function render() {
     if (queued) return;
     queued = true;
@@ -3602,14 +3621,16 @@ button.tile:hover { border-color: var(--ink); }
     const panel = $("#dash-panel");
     if (D.tab === "settings" && D.settingsDirty) { // don't wipe what they're typing, but keep the documents box current
       const c = $("#docs-card");
-      if (c && D.role === "tutor") { const h = docsCard(); if (h !== lastDocs) { c.outerHTML = h; lastDocs = h; } }
+      if (c && D.role === "tutor") { const h = docsCard(); if (h !== lastDocs) { swapHtml(c, h, true); lastDocs = h; } }
       return;
     }
     const typing = document.activeElement && document.activeElement.id === "chat-input";
     const oldThread = $("#chat-thread");
     const nearBottom = !oldThread || oldThread.scrollHeight - oldThread.scrollTop - oldThread.clientHeight < 80;
     const html = PANELS[D.role === "tutor" ? "tutor" : "student"][D.tab]();
-    if (panel.innerHTML !== html) panel.innerHTML = html;
+    const view = `${D.role}|${D.tab}|${D.student || ""}`;
+    if (view !== touchedView) { touched.clear(); touchedView = view; }
+    if (panel.innerHTML !== html) swapHtml(panel, html);
     const f = $("#dash-flash"); if (f) { f.textContent = D.flash; f.classList.toggle("err", D.flashErr); }
     if (D.tab === "messages") {
       const th = $("#chat-thread"); if (th && nearBottom) th.scrollTop = th.scrollHeight;
@@ -4447,7 +4468,7 @@ button.tile:hover { border-color: var(--ink); }
     const msg = $("[data-form-msg]", form), btn = $("button[type=submit]", form);
     if (btn) btn.disabled = true;
     if (msg) { msg.className = "form-msg"; msg.textContent = "Uploading…"; }
-    try { const m = await fn(); flash(m || "Done."); render(); }
+    try { const m = await fn(); forget(form); $$("input[type=file]", form).forEach((n) => { n.value = ""; }); flash(m || "Done."); render(); }
     catch (e) { if (msg) { msg.className = "form-msg err"; msg.textContent = friendlyError(e).message; } if (btn) btn.disabled = false; }
   }
 
@@ -4529,6 +4550,9 @@ button.tile:hover { border-color: var(--ink); }
       D.tab = n.dataset.dashTab; D.settingsDirty = false; render();
       requestAnimationFrame(() => { const f = $(`[data-dash-tab="${D.tab}"]`); if (f) f.focus(); });
     });
+    const touch = (e) => { const t = e.target; if (t && t.id && !NO_KEEP.has(t.id) && t.closest("#dash-panel")) touched.add(t.id); };
+    root.addEventListener("input", touch, true);
+    root.addEventListener("change", touch, true);
     root.addEventListener("change", (e) => {
       if (e.target.id === "dash-tutor-filter") { D.tutorFilter = e.target.value; D.flash = ""; render(); }
       if (e.target.id === "pack-mine") { D.packMine = e.target.checked; render(); }
@@ -4568,14 +4592,14 @@ button.tile:hover { border-color: var(--ink); }
         const b = $("button[type=submit]", f), m = $("#doc-msg");
         if (b) b.disabled = true;
         if (m) { m.className = "form-msg"; m.textContent = "Uploading…"; }
-        return addDocs().then((msg) => { D.docMsg = msg; D.docErr = false; }, (err) => { D.docMsg = friendlyError(err).message; D.docErr = true; })
-          .then(() => { const c = $("#docs-card"); if (c) { lastDocs = docsCard(); c.outerHTML = lastDocs; } render(); });
+        return addDocs().then((msg) => { D.docMsg = msg; D.docErr = false; forget(f); }, (err) => { D.docMsg = friendlyError(err).message; D.docErr = true; })
+          .then(() => { const c = $("#docs-card"); if (c) { lastDocs = docsCard(); swapHtml(c, lastDocs, true); } render(); });
       }
       if (f.id === "dash-settings") {
         // Keep what they typed if something is missing; only refresh once it has saved.
         const b = $("button[type=submit]", f); if (b) b.disabled = true;
         flash("Saving…");
-        return saveSettings(f).then((m) => { D.settingsDirty = false; flash(m || "Saved."); render(); }, (err) => flash(friendlyError(err).message, true))
+        return saveSettings(f).then((m) => { D.settingsDirty = false; forget(f); flash(m || "Saved."); render(); }, (err) => flash(friendlyError(err).message, true))
           .then(() => { const b2 = $("#dash-settings button[type=submit]"); if (b2) b2.disabled = false; });
       }
       if (f.id === "work-form") return runForm(f, () => sendWork(f));
