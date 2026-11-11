@@ -9,7 +9,9 @@
   if (!window.supabase || !CFG.supabaseUrl || !CFG.publishableKey) return;
   // Coming back from an email confirmation link? Note it before the address bar is cleaned up.
   const hash0 = location.hash || "";
-  window.TutorEDAuthReturn = { ok: /access_token=/.test(hash0), error: /error(_code|_description)?=/.test(hash0) };
+  // type=invite (admin invited them) or type=recovery (forgot password): they must choose a password next.
+  const linkType = ((hash0.match(/[#&]type=([a-z_]+)/) || [])[1]) || "";
+  window.TutorEDAuthReturn = { ok: /access_token=/.test(hash0), error: /error(_code|_description)?=/.test(hash0), setPassword: linkType === "invite" || linkType === "recovery", type: linkType };
   const sb = window.supabase.createClient(CFG.supabaseUrl, CFG.publishableKey);
   const SITE = location.origin + location.pathname;
   const BUCKET = CFG.storageBucket || "tutor-docs";
@@ -217,7 +219,23 @@
       session = data.session || null;
     },
     async signOut() { try { await sb.auth.signOut(); } catch (e) {} session = null; pokeAll(); },
+    // Sets a new password for whoever is signed in (after an invite or reset link, or from the dashboard).
+    async setPassword(password) {
+      await sessionReady;
+      if (!uid()) throw new Error("This link has expired or was already used. Ask for a new one, then try again.");
+      const { error } = await sb.auth.updateUser({ password });
+      if (error) {
+        if (/different from the old/i.test(error.message || "")) throw new Error("That's your current password. Choose a new one.");
+        throw nice(error);
+      }
+    },
+    // Emails a link that signs the person in so they can choose a new password.
+    async sendReset(email) {
+      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: SITE });
+      if (error) throw nice(error);
+    },
   };
+  sb.auth.onAuthStateChange((evt) => { if (evt === "PASSWORD_RECOVERY") window.TutorEDAuthReturn.setPassword = true; });
 
   // Creates or cancels the Google Meet lesson for a booking (runs on the server).
   window.TutorEDLesson = async function (bookingId, action) {
