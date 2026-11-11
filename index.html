@@ -1002,7 +1002,7 @@ button.tile:hover { border-color: var(--ink); }
         <span class="eyebrow">For students</span>
         <h3>Learn with a tutor who fits you</h3>
         <ol>
-          <li>Search by subject and level, from Grade 6 to A/L.</li>
+          <li>Search by subject and level, from Grade 6 to Pearson Edexcel A/L.</li>
           <li>Compare tutor profiles, rates and reviews.</li>
           <li>Book a lesson and join online from any device.</li>
           <li>Download study packs and past papers to practise.</li>
@@ -1046,7 +1046,7 @@ button.tile:hover { border-color: var(--ink); }
     <div class="section-head">
       <span class="eyebrow">Subjects</span>
       <h2 id="subjects-title">Popular subjects</h2>
-      <p>From core school subjects to A/L streams. More are added every month.</p>
+      <p>From core school subjects to Pearson Edexcel A/L. More are added every month.</p>
     </div>
     <ul class="subject-list">
       <li>Mathematics</li><li>Combined Maths</li><li>Science</li><li>Physics</li><li>Chemistry</li><li>Biology</li>
@@ -1133,7 +1133,7 @@ button.tile:hover { border-color: var(--ink); }
       <p>Filter by subject and level. Every profile shows the tutor's experience, teaching languages, rate and open times.</p>
     </div>
     <div class="grid grid-3" style="margin-bottom:40px">
-      <div class="card step"><div class="step-num">1</div><h3>Search</h3><p class="card-muted">Pick a subject and your level: Grade 6–9, O/L or A/L.</p></div>
+      <div class="card step"><div class="step-num">1</div><h3>Search</h3><p class="card-muted">Pick a subject and your level: Grade 6–9, O/L or Pearson Edexcel A/L.</p></div>
       <div class="card step"><div class="step-num">2</div><h3>View profiles</h3><p class="card-muted">Read about each tutor, check their verified badge and compare rates.</p></div>
       <div class="card step"><div class="step-num">3</div><h3>Book online</h3><p class="card-muted">Choose a time, pay securely and join the lesson from your phone or laptop.</p></div>
     </div>
@@ -1158,7 +1158,7 @@ button.tile:hover { border-color: var(--ink); }
         <ul><li>Short notes by unit</li><li>Worked examples</li><li>Key formulas and definitions</li></ul>
         <a class="btn btn--outline" href="#signup-student">View study packs</a></article>
       <article class="card resource"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div><h3>Past paper bundles</h3>
-        <ul><li>O/L and A/L papers by year</li><li>Marking schemes</li><li>Topic-by-topic question sets</li></ul>
+        <ul><li>O/L and Pearson Edexcel A/L papers by year</li><li>Marking schemes</li><li>Topic-by-topic question sets</li></ul>
         <a class="btn btn--outline" href="#signup-student">View past papers</a></article>
       <article class="card resource"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></div><h3>Practice resources</h3>
         <ul><li>Timed practice tests</li><li>Revision checklists</li><li>Tutor-made worksheets</li></ul>
@@ -1287,7 +1287,7 @@ button.tile:hover { border-color: var(--ink); }
     <div>
       <span class="eyebrow">Earn money</span>
       <h2 id="earn-title">You set the rate. We handle the payments.</h2>
-      <p class="card-muted">Charge what your experience is worth. You can set different rates for different levels, such as O/L and A/L, and offer discounted lesson bundles.</p>
+      <p class="card-muted">Charge what your experience is worth. You can set different rates for different levels, such as O/L and Pearson Edexcel A/L, and offer discounted lesson bundles.</p>
       <ul class="feature-list">
         <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><strong>Set your own hourly rate</strong> and change it whenever you like.</span></li>
         <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><strong>Students pay upfront</strong> and we hold the money securely, so you never chase payments.</span></li>
@@ -1418,7 +1418,9 @@ button.tile:hover { border-color: var(--ink); }
           <div class="field"><label for="s-pw">Password</label>
             <input id="s-pw" type="password" autocomplete="new-password" minlength="8" pattern="(?=.*[0-9]).{8,}" aria-describedby="s-pwhint" required><span class="hint" id="s-pwhint">At least 8 characters, with one number.</span></div>
           <div class="field"><label for="s-level">Your level</label>
-            <select id="s-level" required><option value="">Choose a level</option><option>Grade 6–9</option><option>O/L</option><option>A/L</option><option>I'm a parent</option></select></div>
+            <select id="s-level" required><option value="">Choose a level</option><option>Grade 6–9</option><option>O/L</option><option value="A/L">Pearson Edexcel A/L</option><option>I'm a parent</option></select></div>
+          <div class="field" id="s-age-wrap"><label for="s-age">Your age</label><input id="s-age" type="number" inputmode="numeric" min="5" max="99" required></div>
+          <div class="field" id="s-parent-wrap" hidden><label for="s-parent">Parent or guardian's email</label><input id="s-parent" type="email" autocomplete="off" aria-describedby="s-parent-hint" disabled required><span class="hint" id="s-parent-hint">You're under 18, so we need a parent or guardian's email address.</span></div>
           <label class="check"><input type="checkbox" required> <span>I agree to the <a href="#terms">Terms</a> and <a href="#privacy">Privacy policy</a>.</span></label>
           <button class="btn btn--primary btn--block btn--lg" type="submit">Create student account</button>
           <p class="form-msg" data-submit-msg role="status" aria-live="polite"></p>
@@ -1907,7 +1909,7 @@ button.tile:hover { border-color: var(--ink); }
                   <div class="field"><label for="res-subject">Subject</label><input id="res-subject" list="res-subjects" required placeholder="e.g. Maths"><datalist id="res-subjects"><option value="Maths"><option value="Science"><option value="Commerce"><option value="English"><option value="ICT"></datalist></div>
                 </div>
                 <div class="field-row">
-                  <div class="field"><label for="res-level">Level</label><select id="res-level"><option>Grade 6–9</option><option selected>O/L</option><option>A/L</option></select></div>
+                  <div class="field"><label for="res-level">Level</label><select id="res-level"><option>Grade 6–9</option><option selected>O/L</option><option value="A/L">Pearson Edexcel A/L</option></select></div>
                   <div class="field"><label for="res-year">Year <span class="opt">(optional)</span></label><input id="res-year" inputmode="numeric" maxlength="9" placeholder="e.g. 2023"></div>
                 </div>
                 <div class="field"><label for="res-desc">Short description <span class="opt">(optional)</span></label><input id="res-desc" maxlength="160" placeholder="e.g. Paper I and II with marking scheme"></div>
@@ -2458,7 +2460,7 @@ button.tile:hover { border-color: var(--ink); }
     if (own.exists) return;
     const me = await S.user.me();
     const data = { role: p.role === "tutor" ? "tutor" : "student", method: "email", name: p.name || "", email: (me.email || "").toLowerCase() };
-    if (data.role === "tutor") { data.subjects = p.subjects || ""; data.docs = []; } else { data.level = p.level || ""; }
+    if (data.role === "tutor") { data.subjects = p.subjects || ""; data.docs = []; } else { data.level = p.level || ""; if (p.age) data.age = Number(p.age); if (p.parentEmail) data.parentEmail = p.parentEmail; }
     await saveSignup(data);
   }
   // When emails must be confirmed, documents are uploaded after the first login.
@@ -2648,15 +2650,43 @@ button.tile:hover { border-color: var(--ink); }
   const phoneOf = (prefix) => `${val(prefix + "-cc") === "+94" ? "+94 " : ""}${val(prefix + "-phone")}`;
   const selectedTab = (group) => { const t = $(`[data-tabs='${group}'] [aria-selected='true']`); return t ? t.dataset.tab : null; };
 
+  /* ---------- Student age and parent email ---------- */
+  const isParentLevel = (l) => l === "I'm a parent";
+  function ageRules(levelId, ageId, ageWrap, parentId, parentWrap) {
+    const lvl = document.getElementById(levelId), age = document.getElementById(ageId), par = document.getElementById(parentId);
+    const aw = document.getElementById(ageWrap), pw = document.getElementById(parentWrap);
+    if (!lvl || !age || !par) return;
+    const sync = () => {
+      const parent = isParentLevel(lvl.value);
+      aw.hidden = parent; age.disabled = parent;
+      const n = Number(age.value);
+      const minor = !parent && age.value !== "" && n < 18;
+      pw.hidden = !minor; par.disabled = !minor;
+    };
+    lvl.addEventListener("change", sync); age.addEventListener("input", sync); sync();
+    return sync;
+  }
+  ageRules("s-level", "s-age", "s-age-wrap", "s-parent", "s-parent-wrap");
+  function ageInfo() {
+    if (isParentLevel(val("s-level"))) return {};
+    const age = Number(val("s-age"));
+    if (!age || age < 5 || age > 99) throw new Error("Enter your age.");
+    if (age >= 18) return { age };
+    const parentEmail = val("s-parent").toLowerCase();
+    if (!parentEmail) throw new Error("You're under 18, so enter a parent or guardian's email.");
+    if (parentEmail === val("s-email").toLowerCase()) throw new Error("Your parent or guardian's email must be different from yours.");
+    return { age, parentEmail };
+  }
+
   /* ---------- Form handlers ---------- */
   const handlers = {
     async "student-email"() {
       if (HOSTED) {
-        const r = await hostedSignUp(val("s-email").toLowerCase(), $("#s-pw").value, { role: "student", method: "email", name: val("s-name"), level: val("s-level") });
+        const r = await hostedSignUp(val("s-email").toLowerCase(), $("#s-pw").value, Object.assign({ role: "student", method: "email", name: val("s-name"), level: val("s-level") }, ageInfo()));
         if (r && r.confirm) { openOtp(val("s-email").toLowerCase()); return CONFIRM_MSG; }
       }
       await needDb();
-      const id = await saveSignup({ role: "student", method: "email", name: val("s-name"), email: val("s-email").toLowerCase(), level: val("s-level") });
+      const id = await saveSignup(Object.assign({ role: "student", method: "email", name: val("s-name"), email: val("s-email").toLowerCase(), level: val("s-level") }, ageInfo()));
       Session.set(id); goDashboard();
       return "Account created. Opening your dashboard…";
     },
@@ -3046,6 +3076,8 @@ button.tile:hover { border-color: var(--ink); }
       ["Account type", isTutor ? "Tutor" : "Student"], ["Signed up with", METHOD_LABEL[r.method] || r.method],
       ["Email", emailOf(r) || "—"], ["Phone", r.phone || "—"],
       [isTutor ? "Subjects" : "Level", levelOf(r)], ["Joined", fmtDate(r.createdAt)],
+      ...(!isTutor && r.age ? [["Age", String(r.age)]] : []),
+      ...(!isTutor && r.parentEmail ? [["Parent's email", r.parentEmail]] : []),
     ];
     let html = `<div class="detail" data-detail="${esc(r.id)}">
       <div class="detail-head"><div class="who"><div class="avatar" aria-hidden="true">${esc(initials(nameOf(r)))}</div><h2>${esc(nameOf(r))}</h2>${r.sample ? '<span class="tag tag--sample">Sample</span>' : ""}</div>${pill(r.status)}</div>
@@ -3777,7 +3809,9 @@ button.tile:hover { border-color: var(--ink); }
             <div class="field"><label for="ds-name">Full name</label><input id="ds-name" autocomplete="name" value="${esc(a.name || "")}" required></div>
             <div class="field"><label for="ds-email">Email</label><input id="ds-email" type="email" autocomplete="email" value="${esc(a.email || "")}"></div>
             <div class="field"><label for="ds-phone">Mobile number</label><input id="ds-phone" type="tel" autocomplete="tel" value="${esc(a.phone || "")}"></div>
-            <div class="field"><label for="ds-level">Level</label><select id="ds-level">${["", "Grade 6–9", "O/L", "A/L", "I'm a parent"].map((l) => `<option value="${esc(l)}"${l === (a.level || "") ? " selected" : ""}>${l || "Choose a level"}</option>`).join("")}</select></div>
+            <div class="field"><label for="ds-level">Level</label><select id="ds-level">${["", "Grade 6–9", "O/L", "A/L", "I'm a parent"].map((l) => `<option value="${esc(l)}"${l === (a.level || "") ? " selected" : ""}>${l === "A/L" ? "Pearson Edexcel A/L" : (l || "Choose a level")}</option>`).join("")}</select></div>
+            <div class="field" id="ds-age-wrap"${isParentLevel(a.level) ? " hidden" : ""}><label for="ds-age">Age</label><input id="ds-age" type="number" inputmode="numeric" min="5" max="99" value="${esc(a.age || "")}"></div>
+            <div class="field" id="ds-parent-wrap"${isParentLevel(a.level) || !a.age || a.age >= 18 ? " hidden" : ""}><label for="ds-parent">Parent or guardian's email</label><input id="ds-parent" type="email" autocomplete="off" value="${esc(a.parentEmail || "")}"><span class="hint">Needed because you're under 18.</span></div>
           </div>
           <fieldset class="field"><legend>Lesson reminders</legend>
             <label class="check"><input type="checkbox" id="ds-n-email"${n.email ? " checked" : ""}> <span>Email me a reminder the day before</span></label>
@@ -3926,7 +3960,24 @@ button.tile:hover { border-color: var(--ink); }
           </form></div>`;
   }
   // Tutor: nudge to finish the public profile
+  const isParentLevel = (l) => l === "I'm a parent";
+  // Student settings: show the age box unless "I'm a parent", and the parent email box when under 18
+  function syncAgeFields() {
+    const lvl = document.getElementById("ds-level"), age = document.getElementById("ds-age");
+    const aw = document.getElementById("ds-age-wrap"), pw = document.getElementById("ds-parent-wrap");
+    if (!lvl || !age || !aw || !pw) return;
+    const parent = isParentLevel(lvl.value);
+    aw.hidden = parent;
+    pw.hidden = parent || age.value === "" || Number(age.value) >= 18;
+  }
+  document.addEventListener("input", (e) => { if (e.target && (e.target.id === "ds-age" || e.target.id === "ds-level")) syncAgeFields(); });
+  document.addEventListener("change", (e) => { if (e.target && e.target.id === "ds-level") syncAgeFields(); });
   function profileBanner() {
+    if (D.role === "student") {
+      const a = D.acct || {};
+      if (isParentLevel(a.level) || (a.age && (a.age >= 18 || a.parentEmail))) return "";
+      return `<div class="banner banner--pending" role="note">Add your age in <button class="link-btn" type="button" data-go-tab="settings">Account settings</button>. If you're under 18, we also need a parent or guardian's email.</div>`;
+    }
     if (D.role !== "tutor" || !window.TutorEDAvatar) return "";
     const t = D.tutorDoc || {};
     if (photoOk(t.photo) && qualLines(t).length) return "";
@@ -4283,7 +4334,19 @@ button.tile:hover { border-color: var(--ink); }
     const v = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ""; };
     if (!v("ds-name")) throw new Error("Enter your name.");
     if (form.dataset.kind === "student") {
-      await saveAcct({ name: v("ds-name"), email: v("ds-email").toLowerCase(), phone: v("ds-phone"), level: v("ds-level"), notify: { email: $("#ds-n-email").checked, sms: $("#ds-n-sms").checked } });
+      const extra = {};
+      if (!isParentLevel(v("ds-level"))) {
+        const age = Number(v("ds-age"));
+        if (!age || age < 5 || age > 99) throw new Error("Enter your age.");
+        extra.age = age;
+        if (age < 18) {
+          const pe = v("ds-parent").toLowerCase();
+          if (!pe || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(pe)) throw new Error("You're under 18, so enter a parent or guardian's email.");
+          if (pe === v("ds-email").toLowerCase()) throw new Error("Your parent or guardian's email must be different from yours.");
+          extra.parentEmail = pe;
+        }
+      }
+      await saveAcct(Object.assign({ name: v("ds-name"), email: v("ds-email").toLowerCase(), phone: v("ds-phone"), level: v("ds-level"), notify: { email: $("#ds-n-email").checked, sms: $("#ds-n-sms").checked } }, extra));
     } else {
       if (!v("ds-subjects")) throw new Error("List at least one subject.");
       const rate = v("ds-rate") === "" ? null : Number(v("ds-rate"));
