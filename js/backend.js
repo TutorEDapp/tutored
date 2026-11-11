@@ -327,6 +327,12 @@
     async remove(path) { const { error } = await sb.storage.from(STUDY).remove([path]); if (error) throw nice(error); },
   };
 
+  // Admin-only helpers: list admin accounts and fully delete an account (profile, bookings, login).
+  window.TutorEDAdmin = {
+    async admins() { const { data, error } = await sb.rpc("admin_list"); if (error) throw nice(error); return data || []; },
+    async deleteUser(id) { const { error } = await sb.rpc("admin_delete_user", { target: id }); if (error) throw new Error(error.message || "The account couldn't be deleted."); pokeAll(); },
+  };
+
   window.TutorEDHosted = true;
   window.claude = { use: async (name) => ({ db, user, assets })[name] || null };
 })();
