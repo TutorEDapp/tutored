@@ -411,6 +411,12 @@ input[type="radio"] { width: 20px; height: 20px; min-height: 0; padding: 0; acce
 .form-msg { font-size: var(--fs-sm); margin: 0; min-height: 1.4em; }
 .form-msg.ok { color: var(--success); }
 .form-msg.err { color: var(--error); }
+.file-picked { display: block; margin-top: 6px; font-size: 0.8125rem; font-weight: 600; color: var(--success); overflow-wrap: anywhere; }
+.file-picked::before { content: "\2713  "; }
+.btn.is-busy { cursor: progress; opacity: 1 !important; gap: 8px; }
+.btn .spin { display: inline-block; width: 1em; height: 1em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: -0.15em; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .btn .spin { animation-duration: 2s; } }
 fieldset { border: 0; padding: 0; margin: 0; }
 
 .upload {
@@ -2353,6 +2359,36 @@ button.tile:hover { border-color: var(--ink); }
     select(initial);
   });
 
+  /* ---------- Chosen files + "Uploading…" button (all forms) ---------- */
+  // Shows the names of the chosen files under any file box (unless the page has its own list).
+  window.TutorEDShowPicked = function (input) {
+    if (!input || input.type !== "file" || input.dataset.output) return;
+    let out = input.nextElementSibling && input.nextElementSibling.classList.contains("file-picked") ? input.nextElementSibling : null;
+    const names = Array.from(input.files || []).map((f) => f.name);
+    if (!names.length) { if (out) out.remove(); return; }
+    if (!out) { out = document.createElement("span"); out.className = "file-picked"; out.setAttribute("aria-live", "polite"); input.after(out); }
+    out.textContent = names.length === 1 ? "Chosen: " + names[0] : `${names.length} files chosen: ${names.join(", ")}`;
+  };
+  document.addEventListener("change", (e) => { if (e.target && e.target.type === "file") window.TutorEDShowPicked(e.target); }, true);
+  // When a form with chosen files is sent, its button spins and says "Uploading…" until the work is done.
+  document.addEventListener("submit", (e) => {
+    const form = e.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    const n = Array.from(form.querySelectorAll("input[type=file]")).reduce((a, i) => a + ((i.files && i.files.length) || 0), 0);
+    const btn = form.querySelector("button[type=submit]");
+    if (!n || !btn || btn.classList.contains("is-busy")) return;
+    setTimeout(() => {
+      if (!btn.disabled || !btn.isConnected) return; // the form didn't start (e.g. something missing)
+      const html = btn.innerHTML;
+      btn.classList.add("is-busy"); btn.setAttribute("aria-busy", "true");
+      btn.innerHTML = `<span class="spin" aria-hidden="true"></span>Uploading ${n === 1 ? "file" : n + " files"}…`;
+      const done = () => { obs.disconnect(); clearInterval(tick); if (btn.isConnected) { btn.innerHTML = html; btn.classList.remove("is-busy"); btn.removeAttribute("aria-busy"); } };
+      const obs = new MutationObserver(() => { if (!btn.disabled) done(); });
+      obs.observe(btn, { attributes: true, attributeFilter: ["disabled"] });
+      const tick = setInterval(() => { if (!btn.isConnected) done(); }, 1000);
+    }, 0);
+  }, true);
+
   /* ---------- Click-to-expand cards ---------- */
   $$(".expand-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -3994,14 +4030,20 @@ button.tile:hover { border-color: var(--ink); }
   let touchedView = "";
   const NO_KEEP = new Set(["chat-input", "dash-find"]);
   function swapHtml(el, html, outer) {
+    // Keep the actual file boxes (even while the file picker is open), so nothing has to be chosen twice.
+    const fileBoxes = $$("input[type=file]", el).filter((n) => n.id);
     const keep = [];
     $$("input, select, textarea", el).forEach((n) => {
       if (n.id && touched.has(n.id)) keep.push([n.id, n.type === "file" ? n.files : null, n.value, n.checked]);
     });
     if (outer) el.outerHTML = html; else el.innerHTML = html;
+    fileBoxes.forEach((old) => {
+      const n = document.getElementById(old.id);
+      if (n && n !== old && n.type === "file") { n.replaceWith(old); if (window.TutorEDShowPicked) window.TutorEDShowPicked(old); }
+    });
     keep.forEach(([id, files, value, checked]) => {
       const n = document.getElementById(id);
-      if (!n) return;
+      if (!n || n.type === "file") return;
       if (n.type === "file") { if (files && files.length) { try { n.files = files; } catch {} } }
       else if (n.type === "checkbox" || n.type === "radio") n.checked = checked;
       else n.value = value;
@@ -4978,7 +5020,7 @@ button.tile:hover { border-color: var(--ink); }
     const msg = $("[data-form-msg]", form), btn = $("button[type=submit]", form);
     if (btn) btn.disabled = true;
     if (msg) { msg.className = "form-msg"; msg.textContent = "Uploading…"; }
-    try { const m = await fn(); forget(form); $$("input[type=file]", form).forEach((n) => { n.value = ""; }); flash(m || "Done."); render(); }
+    try { const m = await fn(); forget(form); $$("input[type=file]", form).forEach((n) => { n.value = ""; if (window.TutorEDShowPicked) window.TutorEDShowPicked(n); }); flash(m || "Done."); render(); }
     catch (e) { if (msg) { msg.className = "form-msg err"; msg.textContent = friendlyError(e).message; } if (btn) btn.disabled = false; }
   }
 
@@ -5109,14 +5151,14 @@ button.tile:hover { border-color: var(--ink); }
         const b = $("button[type=submit]", f), m = $("#doc-msg");
         if (b) b.disabled = true;
         if (m) { m.className = "form-msg"; m.textContent = "Uploading…"; }
-        return addDocs().then((msg) => { D.docMsg = msg; D.docErr = false; forget(f); }, (err) => { D.docMsg = friendlyError(err).message; D.docErr = true; })
+        return addDocs().then((msg) => { D.docMsg = msg; D.docErr = false; forget(f); const fi = $("#df-file"); if (fi) { fi.value = ""; window.TutorEDShowPicked && window.TutorEDShowPicked(fi); } }, (err) => { D.docMsg = friendlyError(err).message; D.docErr = true; })
           .then(() => { const c = $("#docs-card"); if (c) { lastDocs = docsCard(); swapHtml(c, lastDocs, true); } render(); });
       }
       if (f.id === "dash-settings") {
         // Keep what they typed if something is missing; only refresh once it has saved.
         const b = $("button[type=submit]", f); if (b) b.disabled = true;
         flash("Saving…");
-        return saveSettings(f).then((m) => { D.settingsDirty = false; forget(f); flash(m || "Saved."); render(); }, (err) => flash(friendlyError(err).message, true))
+        return saveSettings(f).then((m) => { D.settingsDirty = false; forget(f); $$("input[type=file]", f).forEach((n) => { n.value = ""; if (window.TutorEDShowPicked) window.TutorEDShowPicked(n); }); flash(m || "Saved."); render(); }, (err) => flash(friendlyError(err).message, true))
           .then(() => { const b2 = $("#dash-settings button[type=submit]"); if (b2) b2.disabled = false; });
       }
       if (f.id === "work-form") return runForm(f, () => sendWork(f));
