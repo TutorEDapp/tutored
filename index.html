@@ -51,7 +51,7 @@
 </script>
 <script src="js/supabase.js"></script>
 <script>window.TUTORED_CONFIG = {"supabaseUrl": "https://dxfxnnifyxukuglftwgg.supabase.co", "publishableKey": "sb_publishable_cTGD_64WlPPxzmwe-8O8KA_gcjqc-UD", "lessonFunction": "lesson-link", "storageBucket": "tutor-docs"};</script>
-<script src="js/backend.js?v=5"></script>
+<script src="js/backend.js?v=6"></script>
 <script src="js/resources.js"></script>
 </head>
 <body>
@@ -451,6 +451,13 @@ input[type="radio"] { width: 20px; height: 20px; min-height: 0; padding: 0; acce
 .form-msg { font-size: var(--fs-sm); margin: 0; min-height: 1.4em; }
 .form-msg.ok { color: var(--success); }
 .form-msg.err { color: var(--error); }
+.rating { color: #8a5a00; font-weight: 600; }
+.tutor-card header .avatar { flex: none; }
+.tutor-card header > div { min-width: 0; }
+#dash-find-subject, #dash-find-price, #dash-find-sort { width: auto; max-width: 100%; }
+@media (max-width: 640px) { #dash-find-subject, #dash-find-price, #dash-find-sort { width: 100%; } }
+.move-box { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 8px; background: var(--white); }
+.move-box p { margin: 0; font-size: 0.875rem; }
 .cookie-bar { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 3000; max-width: 720px; margin: 0 auto; background: var(--white); color: var(--text); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: 0 10px 40px rgba(20, 22, 31, 0.22); padding: 16px 18px; display: grid; gap: 12px; }
 .cookie-bar[hidden] { display: none; }
 .cookie-bar h2 { font-size: 1.0625rem; margin: 0; }
@@ -2070,6 +2077,11 @@ button.tile:hover { border-color: var(--ink); }
                 <ul class="list" id="ov-attention"></ul>
               </div>
               <div class="card">
+                <div class="card-head"><h2 class="h-card">Tutor reviews</h2></div>
+                <p class="card-muted small" id="ov-reviews-note" style="margin:0 0 8px">Reviews from students appear here for your approval.</p>
+                <ul class="list" id="ov-reviews"></ul>
+              </div>
+              <div class="card">
                 <div class="card-head"><h2 class="h-card">Latest sign-ups</h2><button class="link-btn" type="button" data-goto="signups">View all</button></div>
                 <ul class="list" id="ov-latest"></ul>
               </div>
@@ -3416,6 +3428,7 @@ button.tile:hover { border-color: var(--ink); }
       render();
     }, (e) => { clearTimeout(timer); setStatus("Couldn't load sign-ups: " + friendlyError(e).message, true); });
     S.db.collection("bookings").where("status", "==", "confirmed").onSnapshot((snap) => { A.lessons = snap.size; render(); }, () => {});
+    S.db.collection("reviews").onSnapshot((snap) => { A.reviews = snap.docs.map((d) => ({ id: d.id, ...d.data() })); render(); }, () => {});
     S.db.collection("messages").onSnapshot((snap) => {
       A.msgs = [];
       snap.docs.forEach((d) => (d.data().items || []).forEach((it) => A.msgs.push({ ...it, docId: d.id })));
@@ -3458,7 +3471,20 @@ button.tile:hover { border-color: var(--ink); }
     $$("[data-count='newmsg']").forEach((e) => (e.textContent = A.msgs.filter((m) => m.status === "new").length));
   }
 
+  function renderReviews() {
+    const ul = $("#ov-reviews"), note = $("#ov-reviews-note");
+    if (!ul) return;
+    const all = (A.reviews || []).slice().sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+    const pending = all.filter((r) => r.status === "pending"), shown = all.filter((r) => r.status === "approved");
+    const tname = (id) => { const r = A.rows.find((x) => x.id === id); return r ? nameOf(r) : "a tutor"; };
+    if (note) note.textContent = `${pending.length} waiting for your approval · ${shown.length} published`;
+    const item = (r) => `<li><div class="grow"><strong>${"★".repeat(Math.max(0, Math.min(5, Number(r.rating) || 0)))} for ${esc(tname(r.tutorId))}</strong><small>${esc(r.studentName || "Student")}${r.comment ? " · “" + esc(r.comment) + "”" : " · no comment"}</small></div>
+      ${r.status === "pending" ? `<button class="btn btn--sm btn--primary" type="button" data-review-set="${esc(r.id)}|approved">Approve</button><button class="btn btn--sm btn--outline" type="button" data-review-set="${esc(r.id)}|hidden">Reject</button>` : `<button class="btn btn--sm btn--outline" type="button" data-review-set="${esc(r.id)}|hidden">Hide</button>`}</li>`;
+    ul.innerHTML = pending.concat(shown.slice(0, 5)).map(item).join("") || `<li class="empty">No reviews yet.</li>`;
+  }
+
   function renderOverview() {
+    renderReviews();
     const students = A.rows.filter((r) => r.role === "student");
     const tutors = A.rows.filter((r) => r.role === "tutor");
     const pending = tutors.filter((r) => r.status === "pending");
@@ -3833,6 +3859,14 @@ button.tile:hover { border-color: var(--ink); }
   }
 
   function bindAdminUi() {
+    document.addEventListener("click", (e) => {
+      const b = e.target.closest && e.target.closest("[data-review-set]");
+      if (!b) return;
+      const [id, st] = b.dataset.reviewSet.split("|");
+      b.disabled = true;
+      S.db.doc("reviews/" + id).update({ status: st, reviewedAt: new Date().toISOString() })
+        .catch((err) => { b.disabled = false; const n = $("#ov-reviews-note"); if (n) n.textContent = friendlyError(err).message; });
+    });
     const tabs = $$("[data-admin-tab]");
     tabs.forEach((b, i) => {
       b.addEventListener("click", () => switchTab(b.dataset.adminTab));
@@ -3986,7 +4020,7 @@ button.tile:hover { border-color: var(--ink); }
   /* ---------- State ---------- */
   const D = {
     id: null, acct: null, role: null, tab: "overview",
-    tutors: [], tutorDoc: null, bookings: [], trials: [], trialOpen: null, trialAsk: null, trialDecline: null, trialEdit: null,
+    tutors: [], tutorDoc: null, bookings: [], trials: [], trialOpen: null, trialAsk: null, trialDecline: null, trialEdit: null, reviews: [], reviewOpen: null, moveOpen: null, slotGroup: false,
     month: (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })(),
     day: todayKey(), tutorFilter: "mine", findQuery: "", findSubject: "", findPrice: "", findSort: "name", packSubject: "all", packType: "all", packMine: false,
     unsubs: [], roleUnsubs: [], loaded: false, timer: null, settingsDirty: false,
@@ -4074,7 +4108,7 @@ button.tile:hover { border-color: var(--ink); }
     unsubscribe(D.unsubs); unsubscribe(D.roleUnsubs);
     clearTimeout(consentTimer);
     Object.assign(D, { consent: null, consentBusy: false, consentMsg: "", consentErr: false, consentAutoTried: false });
-    Object.assign(D, { id: null, acct: null, role: null, tab: "overview", tutors: [], tutorDoc: null, bookings: [], trials: [], trialOpen: null, trialAsk: null, trialDecline: null, trialEdit: null, loaded: false, settingsDirty: false, flash: "", chat: [], chatPeer: null, chatDraft: "", chatLoaded: false, chatErr: "", chatMobileThread: false, work: [], student: null, photoBlob: null, docMsg: "", docErr: false });
+    Object.assign(D, { id: null, acct: null, role: null, tab: "overview", tutors: [], tutorDoc: null, bookings: [], trials: [], trialOpen: null, trialAsk: null, trialDecline: null, trialEdit: null, reviews: [], reviewOpen: null, moveOpen: null, slotGroup: false, loaded: false, settingsDirty: false, flash: "", chat: [], chatPeer: null, chatDraft: "", chatLoaded: false, chatErr: "", chatMobileThread: false, work: [], student: null, photoBlob: null, docMsg: "", docErr: false });
   }
 
   function flash(text, err) { D.flash = text; D.flashErr = !!err; const el = $("#dash-flash"); if (el) { el.textContent = text; el.classList.toggle("err", !!err); } }
@@ -4139,6 +4173,7 @@ button.tile:hover { border-color: var(--ink); }
         D.bookings = all.filter((b) => b.kind !== "trial"); D.trials = all.filter((b) => b.kind === "trial"); render();
       }, err));
     }
+    D.roleUnsubs.push(S.db.collection("reviews").onSnapshot((snap) => { D.reviews = snap.docs.map((d) => ({ id: d.id, ...d.data() })); render(); }, () => {}));
     if (workOn()) D.roleUnsubs.push(S.db.collection("assignments").onSnapshot((snap) => {
       D.work = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((w) => w.studentId === D.id || w.tutorId === D.id);
       render();
@@ -4189,7 +4224,7 @@ button.tile:hover { border-color: var(--ink); }
   function seriesOpenFrom(tutorId, slot) {
     const t = tutorById(tutorId), taken = takenSet();
     if (!t || !slot.series) return [];
-    return (t.slots || []).filter((x) => x.series === slot.series && x.start >= slot.start && !isPast(x.start) && !taken.has(takenKey(tutorId, x.start)))
+    return (t.slots || []).filter((x) => x.series === slot.series && x.start >= slot.start && !isPast(x.start) && isFree(tutorId, x))
       .sort((a, b) => a.start.localeCompare(b.start));
   }
 
@@ -4201,16 +4236,16 @@ button.tile:hover { border-color: var(--ink); }
     ids.forEach((tid) => {
       const t = tutorById(tid);
       if (!t) return;
-      (t.slots || []).forEach((s) => { if (!isPast(s.start) && !taken.has(takenKey(tid, s.start))) out.push({ ...s, tutorId: tid, tutor: t }); });
+      (t.slots || []).forEach((s) => { if (!isPast(s.start) && isFree(tid, s)) out.push({ ...s, tutorId: tid, tutor: t }); });
     });
     return out.sort((a, b) => a.start.localeCompare(b.start));
   }
   // A tutor's own open times (not yet booked)
   function tutorOpenSlots() {
     const taken = takenSet();
-    return ((D.tutorDoc && D.tutorDoc.slots) || []).filter((s) => !isPast(s.start) && !taken.has(takenKey(D.id, s.start))).sort((a, b) => a.start.localeCompare(b.start));
+    return ((D.tutorDoc && D.tutorDoc.slots) || []).filter((s) => !isPast(s.start) && isFree(D.id, s)).sort((a, b) => a.start.localeCompare(b.start));
   }
-  const nextOpenFor = (t) => { const taken = takenSet(); return (t.slots || []).filter((s) => !isPast(s.start) && !taken.has(takenKey(t.id, s.start))).sort((a, b) => a.start.localeCompare(b.start))[0]; };
+  const nextOpenFor = (t) => { const taken = takenSet(); return (t.slots || []).filter((s) => !isPast(s.start) && isFree(t.id, s)).sort((a, b) => a.start.localeCompare(b.start))[0]; };
 
   /* ====================================================================
      RENDER
@@ -4328,14 +4363,15 @@ button.tile:hover { border-color: var(--ink); }
     let actions = "";
     const laterInSeries = b.seriesId ? D.bookings.filter((x) => x.id !== b.id && x.seriesId === b.seriesId && x.studentId === b.studentId && x.tutorId === b.tutorId && x.status === "confirmed" && x.start > b.start).length : 0;
     if (!cancelled && !past && opts.actions !== false) {
-      actions = `<div class="btn-row">${joinControl(b, "btn--sm btn--primary")}${started ? "" : `<button class="btn btn--sm btn--ghost danger-text" type="button" data-cancel="${esc(b.id)}">Cancel</button>`}</div>
+      actions = `<div class="btn-row">${joinControl(b, "btn--sm btn--primary")}${started || b.group || b.reschedule || !(X.HOSTED && window.TutorEDExtra) ? "" : `<button class="btn btn--sm btn--outline" type="button" data-move="${esc(b.id)}">Move</button>`}${started ? "" : `<button class="btn btn--sm btn--ghost danger-text" type="button" data-cancel="${esc(b.id)}">Cancel</button>`}</div>
+        ${moveHtml(b)}
         ${joinHint(b)}
         <div class="confirm" data-cancel-confirm="${esc(b.id)}" hidden><p><strong>Cancel this lesson?</strong> ${D.role === "tutor" ? "The student is told and refunded." : "Your tutor is told. Refunds follow the refund policy."}</p>
           <div class="btn-row"><button class="btn btn--danger btn--sm" type="button" data-cancel-yes="${esc(b.id)}">${laterInSeries ? "Cancel this day only" : "Cancel lesson"}</button>${laterInSeries ? `<button class="btn btn--danger btn--sm" type="button" data-cancel-series="${esc(b.id)}">Cancel all ${laterInSeries + 1} remaining</button>` : ""}<button class="btn btn--outline btn--sm" type="button" data-cancel-no="${esc(b.id)}">Keep it</button></div></div>`;
     }
     return `<li class="lesson${cancelled ? " is-cancelled" : ""}">
       <div class="lesson-when"><strong>${esc(fmtShort(b.start))}</strong><span>${esc(fmtRange(b.start, b.minutes || 60))}</span></div>
-      <div class="lesson-what"><strong>${esc(b.subject || "Lesson")}</strong><span>with ${esc(other)}</span>${b.trial && !cancelled ? `<span class="tag tag--trial">Free trial · ${TRIAL_MIN} min</span>` : ""}${b.seriesId && !cancelled ? `<span class="series-tag">Monthly class · every ${esc(weekdayOf(b.start))}</span>` : ""}<span class="pay-note">${esc(payNote)}</span>${cancelled ? `<span class="pill pill--rejected">Cancelled${b.cancelledBy ? " by " + esc(b.cancelledBy) : ""}</span>` : past ? `<span class="pill pill--resolved">Done</span>` : started ? `<span class="pill pill--approved">In progress</span>` : `<span class="pill pill--approved">Confirmed</span>`}</div>
+      <div class="lesson-what"><strong>${esc(b.subject || "Lesson")}</strong><span>with ${esc(other)}</span>${b.trial && !cancelled ? `<span class="tag tag--trial">Free trial · ${TRIAL_MIN} min</span>` : ""}${b.group && !cancelled ? `<span class="series-tag">Group class</span>` : ""}${b.seriesId && !cancelled ? `<span class="series-tag">Monthly class · every ${esc(weekdayOf(b.start))}</span>` : ""}<span class="pay-note">${esc(payNote)}</span>${cancelled ? `<span class="pill pill--rejected">${b.cancelledBy === "rescheduled" ? "Moved to a new time" : "Cancelled" + (b.cancelledBy ? " by " + esc(b.cancelledBy) : "")}</span>` : past ? `<span class="pill pill--resolved">Done</span>` : started ? `<span class="pill pill--approved">In progress</span>` : `<span class="pill pill--approved">Confirmed</span>`}</div>
       ${actions ? `<div class="lesson-actions">${actions}</div>` : ""}</li>`;
   }
 
@@ -4343,6 +4379,65 @@ button.tile:hover { border-color: var(--ink); }
     const cls = `tile${warn === "alert" ? " tile--alert" : warn ? " tile--warn" : ""}`;
     const inner = `<span class="tile-num">${n}</span><span class="tile-label">${esc(label)}</span>`;
     return go ? `<button type="button" class="${cls}" data-go-tab="${go}">${inner}<span class="tile-go">Open ›</span></button>` : `<div class="${cls}">${inner}</div>`;
+  }
+
+  /* ---------- Group classes, reviews, moving a lesson ---------- */
+  const seatsOf = (s) => (Number(s && s.seats) > 1 ? Number(s.seats) : 1);
+  const bookedAt = (tutorId, start) => D.bookings.filter((b) => b.status === "confirmed" && b.tutorId === tutorId && b.start === start).length;
+  const mineAt = (tutorId, start) => D.role === "student" && D.bookings.some((b) => b.status === "confirmed" && b.tutorId === tutorId && b.start === start && b.studentId === D.id);
+  // A time is free if nobody has it (one-to-one), or seats are left and you're not already in it (group class).
+  const isFree = (tutorId, s) => (seatsOf(s) > 1 ? bookedAt(tutorId, s.start) < seatsOf(s) && !mineAt(tutorId, s.start) : bookedAt(tutorId, s.start) === 0);
+  const slotPrice = (t, s) => (seatsOf(s) > 1 ? Number(s.price) || 0 : t && t.rate ? Math.round(t.rate * ((s.minutes || 60) / 60)) : 0);
+  const stars = (n) => { const k = Math.max(0, Math.min(5, Math.round(Number(n) || 0))); return "★".repeat(k) + "☆".repeat(5 - k); };
+  const tutorReviews = (tid) => D.reviews.filter((r) => r.tutorId === tid && r.status === "approved").sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+  const ratingOf = (tid) => { const l = tutorReviews(tid); return l.length ? { n: l.length, avg: l.reduce((a, r) => a + (Number(r.rating) || 0), 0) / l.length } : null; };
+  const ratingHtml = (tid) => { const rt = ratingOf(tid); return rt ? `<span class="meta rating" title="${rt.avg.toFixed(1)} out of 5">${stars(rt.avg)} ${rt.avg.toFixed(1)} (${rt.n} review${rt.n === 1 ? "" : "s"})</span>` : `<span class="meta">No reviews yet</span>`; };
+  const myReview = (tid) => D.reviews.find((r) => r.tutorId === tid && r.studentId === D.id);
+  const canReview = (tid) => D.role === "student" && D.bookings.some((b) => b.tutorId === tid && b.studentId === D.id && b.status === "confirmed" && isPast(b.start));
+  function reviewBlock(t) {
+    const list = tutorReviews(t.id).slice(0, 2), mine = myReview(t.id);
+    const shown = list.length ? `<div><p class="section-label">Reviews</p><ul class="tutor-quals">${list.map((r) => `<li><span class="rating">${stars(r.rating)}</span> ${r.comment ? esc(r.comment) : ""} <span class="meta">· ${esc(r.studentName || "Student")}</span></li>`).join("")}</ul></div>` : "";
+    if (!canReview(t.id)) return shown;
+    if (D.reviewOpen === t.id) {
+      const cur = mine ? Number(mine.rating) : 5;
+      const labels = { 5: "Excellent", 4: "Good", 3: "Okay", 2: "Poor", 1: "Very poor" };
+      return shown + `<form class="trial-ask" data-review-form="${esc(t.id)}" novalidate>
+        <div class="trial-form"><div class="field"><label for="rv-stars-${esc(t.id)}">Your rating</label><select id="rv-stars-${esc(t.id)}">${[5, 4, 3, 2, 1].map((n) => `<option value="${n}"${n === cur ? " selected" : ""}>${stars(n)} ${labels[n]}</option>`).join("")}</select></div>
+          <div class="field grow"><label for="rv-text-${esc(t.id)}">Comment (optional)</label><input id="rv-text-${esc(t.id)}" maxlength="600" value="${esc((mine && mine.comment) || "")}" placeholder="What was the lesson like?"></div></div>
+        <p class="meta" style="margin:0">TutorED checks each review before it appears on the tutor's card.</p>
+        <div class="btn-row"><button class="btn btn--sm btn--primary" type="submit">Send review</button><button class="btn btn--sm btn--outline" type="button" data-review-no>Cancel</button></div></form>`;
+    }
+    const state = !mine ? "" : mine.status === "approved" ? "Your review is published. " : mine.status === "hidden" ? "Your review wasn't published. " : "Your review is waiting for approval. ";
+    return shown + `<p class="trial-note">${state}<button class="link-btn" type="button" data-review-open="${esc(t.id)}">${mine ? "Edit your review" : "Rate this tutor"}</button></p>`;
+  }
+  function tutorReviewsCard() {
+    const list = tutorReviews(D.id);
+    return `<div class="card"><div class="card-head"><h2 class="h-card">Your reviews</h2>${ratingHtml(D.id)}</div>
+      ${list.length ? `<ul class="tutor-quals">${list.slice(0, 5).map((r) => `<li><span class="rating">${stars(r.rating)}</span> ${r.comment ? esc(r.comment) : ""} <span class="meta">· ${esc(r.studentName || "Student")}</span></li>`).join("")}</ul>` : `<p class="empty">No reviews yet. Students can rate you after a lesson, and reviews appear once TutorED approves them.</p>`}</div>`;
+  }
+  // Moving a booked lesson: one person asks, the other accepts. The lesson stays put until then.
+  function moveHtml(b) {
+    const r = b.reschedule, other = D.role === "tutor" ? b.studentName || "the student" : b.tutorName || "your tutor";
+    const when = (iso) => `${fmtShort(iso)}, ${fmtRange(iso, b.minutes || 60)}`;
+    if (r && r.start) {
+      if (r.by === D.id) return `<div class="move-box"><p>You asked to move this lesson to <strong>${esc(when(r.start))}</strong>. Waiting for ${esc(other)} to accept. Until then it stays at the current time.</p>
+        <div class="btn-row"><button class="btn btn--outline btn--sm" type="button" data-move-drop="${esc(b.id)}">Withdraw request</button></div></div>`;
+      return `<div class="move-box"><p><strong>${esc(other)} asked to move this lesson</strong> to <strong>${esc(when(r.start))}</strong>.${r.note ? ` “${esc(r.note)}”` : ""}</p>
+        ${isPast(r.start) ? `<p>That time has passed.</p>` : ""}
+        <div class="btn-row">${isPast(r.start) ? "" : `<button class="btn btn--primary btn--sm" type="button" data-move-accept="${esc(b.id)}">Accept new time</button>`}<button class="btn btn--outline btn--sm" type="button" data-move-drop="${esc(b.id)}">Keep current time</button></div></div>`;
+    }
+    if (D.moveOpen !== b.id) return "";
+    const d0 = new Date(b.start);
+    return `<form class="move-box" data-move-form="${esc(b.id)}" novalidate><p><strong>Move this lesson</strong> ${esc(other)} will be asked to accept the new time.</p>
+      <div class="trial-form"><div class="field"><label for="mv-date-${esc(b.id)}">New day</label><input id="mv-date-${esc(b.id)}" type="date" min="${esc(todayKey())}" value="${esc(keyOfIso(b.start))}" required></div>
+        <div class="field"><label for="mv-time-${esc(b.id)}">Start</label><input id="mv-time-${esc(b.id)}" type="time" step="900" value="${esc(d0.toTimeString().slice(0, 5))}" required></div>
+        <div class="field grow"><label for="mv-note-${esc(b.id)}">Note (optional)</label><input id="mv-note-${esc(b.id)}" maxlength="200" placeholder="e.g. I have an exam that day"></div></div>
+      <div class="btn-row"><button class="btn btn--sm btn--primary" type="submit">Ask to move</button><button class="btn btn--sm btn--outline" type="button" data-move-no>Cancel</button></div></form>`;
+  }
+  function moveCard() {
+    const list = upcoming().filter((b) => b.reschedule && b.reschedule.start);
+    if (!list.length) return "";
+    return `<div class="card"><div class="card-head"><h2 class="h-card">Lesson time changes</h2></div><ul class="lessons">${list.map((b) => lessonItem(b)).join("")}</ul></div>`;
   }
 
   /* ---------- Free 30-minute trial lessons (one per student and tutor) ---------- */
@@ -4463,7 +4558,7 @@ button.tile:hover { border-color: var(--ink); }
     overview() {
       const up = upcoming();
       const packs = (D.acct.packs || []).length;
-      return `${trialsCard(true)}${nextLessonCard()}
+      return `${trialsCard(true)}${moveCard()}${nextLessonCard()}
         <div class="tiles">${tile(up.length, "Upcoming lessons", false, "calendar")}${tile(savedIds().length, "My tutors", false, "tutors")}${tile(packs, "Study packs", false, "packs")}${tile(dueCount(), "Assignments due", dueCount() ? "alert" : false, "assignments")}${tile(myLessons().filter((b) => b.status === "confirmed" && isOver(b)).length, "Lessons done")}</div>
         <div class="admin-cols">
           <div class="card"><div class="card-head"><h2 class="h-card">Coming up</h2><button class="link-btn" type="button" data-go-tab="calendar">Open calendar</button></div>
@@ -4496,8 +4591,10 @@ button.tile:hover { border-color: var(--ink); }
               const subs = String(s.tutor.subjects || "Lesson").split(",").map((x) => x.trim()).filter(Boolean);
               const wk = s.series ? seriesOpenFrom(s.tutorId, s) : [];
               const monthly = wk.length > 1;
-              const total = s.tutor.rate ? Math.round(s.tutor.rate * ((s.minutes || 60) / 60) * wk.length) : 0;
-              return `<li class="slot${monthly ? " slot--series" : ""}"><div><strong>${esc(fmtRange(s.start, s.minutes || 60))}</strong><span>${esc(s.tutor.name)} · ${esc(lkr(s.tutor.rate))}${s.tutor.rate ? "/hr" : ""}</span>
+              const grp = seatsOf(s) > 1, left = seatsOf(s) - bookedAt(s.tutorId, s.start);
+              const total = slotPrice(s.tutor, s) * wk.length;
+              return `<li class="slot${monthly || grp ? " slot--series" : ""}"><div><strong>${esc(fmtRange(s.start, s.minutes || 60))}</strong><span>${esc(s.tutor.name)} · ${grp ? esc(lkr(s.price)) + " per student" : esc(lkr(s.tutor.rate)) + (s.tutor.rate ? "/hr" : "")}</span>
+                ${grp ? `<span class="series-tag">Group class · ${left} of ${seatsOf(s)} seat${seatsOf(s) === 1 ? "" : "s"} left</span>` : ""}
                 ${monthly ? `<span class="series-tag">Monthly class · every ${esc(weekdayOf(s.start))} · ${plural(wk.length, "week")} left</span>` : ""}</div>
                 <div class="slot-book"><label class="visually-hidden" for="sub-${esc(s.id)}">Subject</label><select id="sub-${esc(s.id)}">${subs.map((x) => `<option>${esc(x)}</option>`).join("")}</select>
                 ${monthly ? `<button class="btn btn--sm btn--primary" type="button" data-book-month="${esc(s.tutorId)}|${esc(s.id)}">Book all ${wk.length} weeks${total ? ` · ${esc(lkr(total))}` : ""}</button>
@@ -4786,7 +4883,7 @@ button.tile:hover { border-color: var(--ink); }
           ${X.HOSTED ? `<a class="btn btn--outline btn--sm" href="#set-password">Change password</a>` : `<button class="btn btn--outline btn--sm" type="button" disabled>Change password</button>`}</div>
         <div class="card"><h2 class="h-card">Delete account</h2><p class="card-muted">Removes your account and cancels your upcoming lessons.</p>
           <button class="btn btn--ghost danger-text btn--sm" type="button" data-delete-account>Delete my account</button>
-          <div class="confirm" id="del-confirm" hidden><p><strong>Delete your account?</strong> This can't be undone.</p>
+          <div class="confirm" id="del-confirm" hidden><p><strong>Delete your account?</strong> This permanently removes your login, profile, messages, homework, reviews and files, and cancels your upcoming lessons. It can't be undone.</p>
             <div class="btn-row"><button class="btn btn--danger btn--sm" type="button" data-delete-account-yes>Delete account</button><button class="btn btn--outline btn--sm" type="button" data-delete-account-no>Keep it</button></div></div></div>
       </div>`;
   }
@@ -4802,9 +4899,10 @@ button.tile:hover { border-color: var(--ink); }
       const students = new Set(myLessons().filter((b) => b.status === "confirmed").map((b) => b.studentId)).size;
       const rate = D.tutorDoc && D.tutorDoc.rate;
       const now = new Date();
-      const hoursMonth = myLessons().filter((b) => b.status === "confirmed" && !b.trial && new Date(b.start).getMonth() === now.getMonth() && new Date(b.start).getFullYear() === now.getFullYear()).reduce((h, b) => h + (b.minutes || 60) / 60, 0);
-      return `${verifyBanner()}${profileBanner()}${trialsCard(true)}${nextLessonCard()}
-        <div class="tiles">${tile(up.length, "Upcoming lessons", false, "calendar")}${tile(openWeek, "Open times this week", openWeek === 0, "calendar")}${tile(students, "Students", false, "students")}${tile(toMark(), "Homework to mark", toMark() ? "alert" : false, "students")}${tile(rate ? lkr(Math.round(rate * hoursMonth * 0.9)) : "—", rate ? "Your earnings this month (after TutorED's 10%)" : "Set your rate to see earnings")}</div>
+      const hoursMonth = myLessons().filter((b) => b.status === "confirmed" && !b.trial && !b.group && new Date(b.start).getMonth() === now.getMonth() && new Date(b.start).getFullYear() === now.getFullYear()).reduce((h, b) => h + (b.minutes || 60) / 60, 0);
+      const groupMonth = myLessons().filter((b) => b.status === "confirmed" && b.group && new Date(b.start).getMonth() === now.getMonth() && new Date(b.start).getFullYear() === now.getFullYear()).reduce((a, b) => a + (Number(b.price) || 0), 0);
+      return `${verifyBanner()}${profileBanner()}${trialsCard(true)}${moveCard()}${nextLessonCard()}${tutorReviewsCard()}
+        <div class="tiles">${tile(up.length, "Upcoming lessons", false, "calendar")}${tile(openWeek, "Open times this week", openWeek === 0, "calendar")}${tile(students, "Students", false, "students")}${tile(toMark(), "Homework to mark", toMark() ? "alert" : false, "students")}${tile(rate || groupMonth ? lkr(Math.round(((rate || 0) * hoursMonth + groupMonth) * 0.9)) : "—", rate || groupMonth ? "Your earnings this month (after TutorED's 10%)" : "Set your rate to see earnings")}</div>
         <div class="card"><div class="card-head"><h2 class="h-card">Coming up</h2><button class="link-btn" type="button" data-go-tab="calendar">Open calendar</button></div>
           ${up.length ? `<ul class="lessons">${up.slice(0, 5).map((b) => lessonItem(b, { actions: false })).join("")}</ul>` : `<p class="empty">No lessons booked yet.</p>`}</div>`;
     },
@@ -4825,7 +4923,7 @@ button.tile:hover { border-color: var(--ink); }
             ${dayLessons.length ? `<ul class="lessons">${dayLessons.map((b) => lessonItem(b)).join("")}</ul>` : `<p class="empty">No lessons on this day.</p>`}
             ${dueSection()}
             <p class="section-label">Your open times</p>
-            ${dayOpen.length ? `<ul class="slots">${dayOpen.map((s) => `<li class="slot${s.series ? " slot--series" : ""}"><div><strong>${esc(fmtRange(s.start, s.minutes || 60))}</strong><span>Open for booking</span>${s.series ? `<span class="series-tag">Monthly class · every ${esc(weekdayOf(s.start))}${s.week && s.weeks ? ` · week ${s.week} of ${s.weeks}` : ""}</span>` : ""}</div>
+            ${dayOpen.length ? `<ul class="slots">${dayOpen.map((s) => `<li class="slot${s.series ? " slot--series" : ""}"><div><strong>${esc(fmtRange(s.start, s.minutes || 60))}</strong><span>${seatsOf(s) > 1 ? `Group class · ${bookedAt(D.id, s.start)} of ${seatsOf(s)} booked · ${esc(lkr(s.price))} each` : "Open for booking"}</span>${s.series ? `<span class="series-tag">Monthly class · every ${esc(weekdayOf(s.start))}${s.week && s.weeks ? ` · week ${s.week} of ${s.weeks}` : ""}</span>` : ""}</div>
               <div class="btn-row"><button class="btn btn--sm btn--ghost danger-text" type="button" data-remove-slot="${esc(s.id)}">${s.series ? "Remove this day" : "Remove"}</button>${s.series ? `<button class="btn btn--sm btn--ghost danger-text" type="button" data-remove-series="${esc(s.series)}">Remove whole month</button>` : ""}</div></li>`).join("")}</ul>` : `<p class="empty">No open times on this day.</p>`}
             ${past ? `<p class="empty">You can't add times to a past day.</p>` : `<form class="slot-form" id="slot-form" novalidate>
               <p class="section-label">Add an open time</p>
@@ -4837,6 +4935,14 @@ button.tile:hover { border-color: var(--ink); }
                 <label class="repeat-opt"><input type="radio" name="sf-rep" value="once" checked><span><strong>One time</strong><small>Only on ${esc(fmtLongDay(D.day))}</small></span></label>
                 <label class="repeat-opt"><input type="radio" name="sf-rep" value="month"><span><strong>Every ${esc(fromKey(D.day).toLocaleDateString(undefined, { weekday: "long" }))} for a month</strong><small>4 weekly classes at the same time. Students can book all 4 at once.</small></span></label>
               </fieldset>
+              <fieldset class="repeat-choice"><legend class="section-label">Who is it for?</legend>
+                <label class="repeat-opt"><input type="radio" name="sf-kind" value="one"${D.slotGroup ? "" : " checked"}><span><strong>One student</strong><small>A one-to-one lesson at your hourly rate.</small></span></label>
+                <label class="repeat-opt"><input type="radio" name="sf-kind" value="group"${D.slotGroup ? " checked" : ""}><span><strong>Group class</strong><small>Several students join the same lesson. You set the seats and the price per student.</small></span></label>
+              </fieldset>
+              <div class="form-grid" id="sf-group"${D.slotGroup ? "" : " hidden"}>
+                <div class="field"><label for="sf-seats">Seats</label><input id="sf-seats" type="number" min="2" max="20" value="5" inputmode="numeric"></div>
+                <div class="field"><label for="sf-price">Price per student (LKR)</label><input id="sf-price" type="number" min="0" step="50" value="1000" inputmode="numeric"></div>
+              </div>
               <button class="btn btn--primary btn--sm" type="submit">Add open time</button></form>`}
             <p class="form-msg" id="dash-flash" role="status" aria-live="polite"></p>
           </div></div>`;
@@ -5041,7 +5147,7 @@ button.tile:hover { border-color: var(--ink); }
       const quals = qualLines(t);
       const shared = D.work.filter((w) => w.kind !== "homework" && w.tutorId === t.id).sort((x, y) => String(y.createdAt || "").localeCompare(String(x.createdAt || "")));
       const hw = homework().filter((w) => w.tutorId === t.id && w.status === "incomplete").length;
-      return `<article class="card tutor-card"><header>${avatarHtml(t.name, t.photo)}<div><h3>${esc(t.name)}</h3><span class="meta">${esc(t.subjects || "")}</span><span class="chip chip--ok">Verified tutor</span></div></header>
+      return `<article class="card tutor-card"><header>${avatarHtml(t.name, t.photo)}<div><h3>${esc(t.name)}</h3><span class="meta">${esc(t.subjects || "")}</span><span class="chip chip--ok">Verified tutor</span>${ratingHtml(t.id)}</div></header>
         <div><p class="section-label">Qualifications</p>${quals.length ? `<ul class="tutor-quals">${quals.map((q) => `<li>${esc(q)}</li>`).join("")}</ul>` : `<p class="meta" style="margin:0">Not added yet.</p>`}</div>
         ${t.bio ? `<p class="meta" style="margin:0">${esc(t.bio)}</p>` : ""}
         <p class="meta" style="margin:0">${t.languages ? esc(t.languages) + " · " : ""}${nx ? "Next open: " + esc(fmtShort(nx.start)) + ", " + esc(fmtTime(nx.start)) : "No open times right now"}</p>
@@ -5062,6 +5168,7 @@ button.tile:hover { border-color: var(--ink); }
               <div class="field grow"><label for="tr-note-${esc(t.id)}">What would you like help with? (optional)</label><input id="tr-note-${esc(t.id)}" maxlength="300" placeholder="e.g. Mechanics, weekdays after 5 pm"></div></div>
             <div class="btn-row"><button class="btn btn--sm btn--primary" type="submit">Send trial request</button><button class="btn btn--sm btn--outline" type="button" data-trial-open-no="${esc(t.id)}">Cancel</button></div></form>`;
         })()}
+        ${reviewBlock(t)}
         <div class="tutor-save">${isSaved ? `<button class="link-btn" type="button" data-unsave="${esc(t.id)}">Remove from my tutors</button>` : `<button class="link-btn" type="button" data-save="${esc(t.id)}">Add to my tutors</button>`}</div></article>`;
   }
   const PANELS = { student, tutor };
@@ -5079,11 +5186,13 @@ button.tile:hover { border-color: var(--ink); }
     const subject = sel ? sel.value : (t.subjects || "Lesson").split(",")[0].trim();
     // Check nobody took it a moment ago
     const clash = await S.db.collection("bookings").where("tutorId", "==", tutorId).where("start", "==", slot.start).where("status", "==", "confirmed").limit(1).get();
-    if (!clash.empty) throw new Error("Someone just booked that time. Pick another one.");
+    const grp = seatsOf(slot) > 1;
+    if (grp ? !isFree(tutorId, slot) : !clash.empty) throw new Error(grp ? "That class is full, or you're already in it. Pick another one." : "Someone just booked that time. Pick another one.");
     const bref = S.db.collection("bookings").doc();
     await bref.set(clean({
       tutorId, tutorName: t.name, studentId: D.id, studentName: D.acct.name || acctName(), subject,
       start: slot.start, minutes: slot.minutes || 60, status: "confirmed", createdAt: nowIso(), test: S.isAdmin || !!D.acct.test,
+      ...(grp ? { group: true, price: Number(slot.price) || 0 } : {}),
     }));
     let linkNote = "";
     if (window.TutorEDLesson) {
@@ -5106,11 +5215,12 @@ button.tile:hover { border-color: var(--ink); }
     const made = [], missed = [];
     for (const w of weeks) {
       const clash = await S.db.collection("bookings").where("tutorId", "==", tutorId).where("start", "==", w.start).where("status", "==", "confirmed").limit(1).get();
-      if (!clash.empty) { missed.push(w); continue; }
+      if (seatsOf(w) > 1 ? !isFree(tutorId, w) : !clash.empty) { missed.push(w); continue; }
       const bref = S.db.collection("bookings").doc();
       await bref.set(clean({
         tutorId, tutorName: t.name, studentId: D.id, studentName: D.acct.name || acctName(), subject,
         start: w.start, minutes: w.minutes || 60, status: "confirmed", createdAt: nowIso(), seriesId: slot.series,
+        ...(seatsOf(w) > 1 ? { group: true, price: Number(w.price) || 0 } : {}),
         test: S.isAdmin || !!D.acct.test,
       }));
       made.push(bref.id);
@@ -5137,6 +5247,47 @@ button.tile:hover { border-color: var(--ink); }
       if (window.TutorEDLesson) { try { await window.TutorEDLesson(x.id, "cancel"); } catch (e) {} }
     }
     return `Cancelled ${plural(list.length, "lesson")} of this monthly class.`;
+  }
+
+  // ---- Reviews and moving lessons
+  async function submitReview(tid, form) {
+    const rating = Number($("select", form).value), comment = ($("input", form).value || "").trim();
+    if (!(rating >= 1 && rating <= 5)) throw new Error("Choose 1 to 5 stars.");
+    await S.db.doc("reviews/" + D.id + "_" + tid).set(clean({ tutorId: tid, studentId: D.id, rating, comment }));
+    D.reviewOpen = null;
+    return "Thanks! Your review will appear once TutorED has checked it.";
+  }
+  async function askMove(id, form) {
+    const b = D.bookings.find((x) => x.id === id);
+    if (!b) throw new Error("That lesson is no longer available.");
+    const day = $("input[type=date]", form).value, time = $("input[type=time]", form).value, note = ($("input[maxlength]", form).value || "").trim();
+    if (!day || !time) throw new Error("Choose a day and a start time.");
+    const [h, m] = time.split(":").map(Number);
+    const d = fromKey(day); d.setHours(h, m, 0, 0);
+    if (d.getTime() < Date.now() + 30 * 60000) throw new Error("Pick a time in the future.");
+    const start = d.toISOString();
+    if (start === b.start) throw new Error("That's the time it's already booked for.");
+    const s0 = d.getTime(), s1 = s0 + (b.minutes || 60) * 60000;
+    if (D.bookings.some((x) => x.id !== id && x.status === "confirmed" && x.tutorId === b.tutorId && Date.parse(x.start) < s1 && Date.parse(x.start) + (x.minutes || 60) * 60000 > s0)) throw new Error(D.role === "tutor" ? "You already have a lesson at that time." : "Your tutor already has a lesson at that time. Pick another one.");
+    await S.db.doc("bookings/" + id).update(clean({ reschedule: { start, note } }));
+    D.moveOpen = null;
+    return `Asked to move the lesson to ${fmtShort(start)}, ${fmtTime(start)}. It stays at the current time until ${D.role === "tutor" ? b.studentName || "the student" : b.tutorName || "your tutor"} accepts.`;
+  }
+  async function dropMove(id) {
+    await S.db.doc("bookings/" + id).update({ reschedule: null });
+    return "The lesson stays at its current time.";
+  }
+  async function acceptMove(id) {
+    const b = D.bookings.find((x) => x.id === id);
+    if (!b || !b.reschedule) throw new Error("That request is no longer available.");
+    const start = b.reschedule.start;
+    const newId = await window.TutorEDExtra.rescheduleAccept(id);
+    let linkNote = "";
+    if (window.TutorEDLesson) {
+      try { await window.TutorEDLesson(id, "cancel"); } catch (e) {}
+      try { await window.TutorEDLesson(newId, "create"); linkNote = " A new calendar invitation is on its way to you both."; } catch (e) { linkNote = " The new lesson link couldn't be created yet."; }
+    }
+    return `Lesson moved to ${fmtShort(start)}, ${fmtTime(start)}.${linkNote}`;
   }
 
   // ---- Free trial actions
@@ -5232,6 +5383,12 @@ button.tile:hover { border-color: var(--ink); }
     const monthly = !!pick && pick.value === "month";
     const reps = monthly ? 4 : 1;
     const series = monthly ? rid() : null;
+    const kind = $("input[name=sf-kind]:checked", form);
+    const grp = !!kind && kind.value === "group";
+    const seats = grp ? Math.round(Number($("#sf-seats", form).value)) : 1, price = grp ? Math.round(Number($("#sf-price", form).value)) : 0;
+    if (grp && !(seats >= 2 && seats <= 20)) throw new Error("A group class needs 2 to 20 seats.");
+    if (grp && !(price > 0)) throw new Error("Set the price each student pays.");
+    const extra = grp ? { seats, price } : {};
     const base = fromKey(D.day);
     const [h, m] = time.split(":").map(Number);
     const existing = (D.tutorDoc && D.tutorDoc.slots) || [];
@@ -5241,10 +5398,10 @@ button.tile:hover { border-color: var(--ink); }
       if (d.getTime() < Date.now()) continue;
       const start = d.toISOString(), end = d.getTime() + minutes * 60000;
       const overlap = existing.concat(added).some((s) => { const s0 = Date.parse(s.start), s1 = s0 + (s.minutes || 60) * 60000; return d.getTime() < s1 && end > s0; });
-      if (!overlap) added.push(series ? { id: rid(), start, minutes, series, week: i + 1, weeks: reps } : { id: rid(), start, minutes });
+      if (!overlap) added.push(series ? { id: rid(), start, minutes, series, week: i + 1, weeks: reps, ...extra } : { id: rid(), start, minutes, ...extra });
     }
     if (!added.length) throw new Error("Those times overlap times you already have, or have already passed.");
-    if (series && added.length < 2) { added[0] = { id: added[0].id, start: added[0].start, minutes }; }
+    if (series && added.length < 2) { added[0] = { id: added[0].id, start: added[0].start, minutes, ...extra }; }
     const slots = [...existing.filter((s) => !isPast(s.start)), ...added];
     const ref = S.db.doc("tutors/" + D.id);
     if (D.tutorDoc) await ref.update({ slots, updatedAt: nowIso() });
@@ -5401,8 +5558,16 @@ button.tile:hover { border-color: var(--ink); }
 
   async function deleteAccount() {
     for (const b of upcoming()) await S.db.doc("bookings/" + b.id).update({ status: "cancelled", cancelledBy: "account deleted", cancelledAt: nowIso() });
-    if (D.role === "tutor") { try { await S.db.doc("tutors/" + D.id).delete(); } catch {} }
-    await S.db.doc("signups/" + D.id).delete();
+    if (X.HOSTED && window.TutorEDExtra) {
+      // Remove calendar events and files first, then the login and everything stored about the account.
+      if (window.TutorEDLesson) for (const b of upcoming()) { try { await window.TutorEDLesson(b.id, "cancel"); } catch (e) {} }
+      const paths = D.work.flatMap((w) => [...(w.files || []), ...((w.submission && w.submission.files) || []), ...((w.feedback && w.feedback.files) || [])]).map((f) => f && f.path).filter(Boolean);
+      if (paths.length && window.TutorEDClassFiles) { try { await window.TutorEDClassFiles.remove(paths); } catch (e) {} }
+      await window.TutorEDExtra.deleteAccount();
+    } else {
+      if (D.role === "tutor") { try { await S.db.doc("tutors/" + D.id).delete(); } catch {} }
+      await S.db.doc("signups/" + D.id).delete();
+    }
     Session.clear(); reset();
     location.hash = "home";
   }
@@ -5459,6 +5624,12 @@ button.tile:hover { border-color: var(--ink); }
       if (d.removeSeries) { t.disabled = true; return run(() => removeSeries(d.removeSeries)); }
       if (d.trialOpen) { D.trialOpen = d.trialOpen; D.flash = ""; render(); requestAnimationFrame(() => { const f = $(`[data-trial-request="${d.trialOpen}"] select`); if (f) f.focus(); }); return; }
       if (d.trialOpenNo) { D.trialOpen = null; return render(); }
+      if (d.reviewOpen) { D.reviewOpen = d.reviewOpen; D.flash = ""; return render(); }
+      if (t.hasAttribute("data-review-no")) { D.reviewOpen = null; return render(); }
+      if (d.move) { D.moveOpen = d.move; D.flash = ""; return render(); }
+      if (t.hasAttribute("data-move-no")) { D.moveOpen = null; return render(); }
+      if (d.moveDrop) { t.disabled = true; return run(() => dropMove(d.moveDrop)); }
+      if (d.moveAccept) { t.disabled = true; t.textContent = "Moving…"; return run(() => acceptMove(d.moveAccept)); }
       if (t.hasAttribute("data-find-clear")) { D.findQuery = ""; D.findSubject = ""; D.findPrice = ""; return render(); }
       if (d.trialCancel) { t.disabled = true; return run(() => cancelTrial(d.trialCancel)); }
       if (d.trialAccept) { t.disabled = true; t.textContent = "Booking…"; return run(() => acceptTrial(d.trialAccept)); }
@@ -5499,6 +5670,7 @@ button.tile:hover { border-color: var(--ink); }
     root.addEventListener("change", (e) => {
       if (e.target.id === "dash-tutor-filter") { D.tutorFilter = e.target.value; D.flash = ""; render(); }
       if (e.target.id === "dash-find-subject") { D.findSubject = e.target.value; D.flash = ""; render(); }
+      if (e.target.name === "sf-kind") { D.slotGroup = e.target.value === "group"; const g = $("#sf-group"); if (g) g.hidden = !D.slotGroup; return; }
       if (e.target.id === "dash-find-price") { D.findPrice = e.target.value; D.flash = ""; render(); }
       if (e.target.id === "dash-find-sort") { D.findSort = e.target.value; render(); }
       if (e.target.id === "pack-mine") { D.packMine = e.target.checked; render(); }
@@ -5541,6 +5713,8 @@ button.tile:hover { border-color: var(--ink); }
       if (f.dataset.trialPropose) { busy(); return run(() => proposeTrial(f.dataset.trialPropose, f)); }
       if (f.dataset.trialDeclineForm) { busy(); return run(() => declineTrial(f.dataset.trialDeclineForm, f)); }
       if (f.dataset.trialAskForm) { busy(); return run(() => askAnotherTime(f.dataset.trialAskForm, f)); }
+      if (f.dataset.reviewForm) { busy(); return run(() => submitReview(f.dataset.reviewForm, f)); }
+      if (f.dataset.moveForm) { busy(); return run(() => askMove(f.dataset.moveForm, f)); }
       if (f.id === "doc-form") {
         const b = $("button[type=submit]", f), m = $("#doc-msg");
         if (b) b.disabled = true;
