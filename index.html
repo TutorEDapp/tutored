@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <meta name="description" content="TutorED: find verified tutors for online lessons in Sri Lanka.">
 <title>TutorED</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -61,6 +61,9 @@
 /* ---------- Reset & base ---------- */
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: calc(var(--nav-h) + 12px); }
+/* While the on-screen keyboard is open, leave room at the bottom so every field can scroll above it */
+body { padding-bottom: var(--kb, 0px); }
+input, select, textarea { scroll-margin-top: calc(var(--nav-h) + 24px); scroll-margin-bottom: 24px; }
 body {
   margin: 0;
   font-family: var(--font-body);
@@ -2188,6 +2191,33 @@ button.tile:hover { border-color: var(--ink); }
       }
     });
   }
+
+  /* ---------- Keep the field you're typing in clear of the on-screen keyboard ---------- */
+  (function keyboardAware() {
+    const vv = window.visualViewport;
+    const isField = (el) => el && el.matches && el.matches("input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=button]):not([type=submit]), textarea, select, [contenteditable=true]");
+    let timer = 0;
+    const clear = () => {
+      const el = document.activeElement;
+      if (!isField(el)) return;
+      const top = (vv ? vv.offsetTop : 0), h = vv ? vv.height : window.innerHeight;
+      const r = el.getBoundingClientRect();
+      const navH = (parseInt(getComputedStyle(document.documentElement).getPropertyValue("--nav-h"), 10) || 68) + 8;
+      // Hidden behind the keyboard (below) or behind the sticky header (above): bring it to the middle of what's visible.
+      if (r.bottom > top + h - 12 || r.top < top + navH) {
+        try { el.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { el.scrollIntoView(); }
+      }
+    };
+    const later = () => { clearTimeout(timer); timer = setTimeout(clear, 120); };
+    const setKb = () => {
+      if (!vv) return;
+      const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+      document.documentElement.style.setProperty("--kb", (kb > 120 ? kb : 0) + "px");
+    };
+    document.addEventListener("focusin", (e) => { if (isField(e.target)) { setKb(); later(); setTimeout(clear, 450); } });
+    document.addEventListener("focusout", () => { setTimeout(() => { if (!isField(document.activeElement)) document.documentElement.style.setProperty("--kb", "0px"); }, 150); });
+    if (vv) { vv.addEventListener("resize", () => { setKb(); later(); }); }
+  })();
 
   /* ---------- Click feedback on menu links ---------- */
   document.addEventListener("click", (e) => {
