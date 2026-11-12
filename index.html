@@ -11,7 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="js/supabase.js"></script>
 <script>window.TUTORED_CONFIG = {"supabaseUrl": "https://dxfxnnifyxukuglftwgg.supabase.co", "publishableKey": "sb_publishable_cTGD_64WlPPxzmwe-8O8KA_gcjqc-UD", "lessonFunction": "lesson-link", "storageBucket": "tutor-docs"};</script>
-<script src="js/backend.js?v=4"></script>
+<script src="js/backend.js?v=5"></script>
 <script src="js/resources.js"></script>
 </head>
 <body>
@@ -451,6 +451,26 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .page-head p { font-size: var(--fs-lg); color: var(--text-muted); max-width: 640px; }
 .page-head .btn-row { margin-top: 24px; }
 .subnav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+
+/* Parental consent (parent page, student lock screen, admin box) */
+.consent-card { max-width: 680px; }
+.consent-card h2 { font-size: 1.0625rem; margin: 20px 0 6px; }
+.consent-card ul { margin: 0 0 8px; padding-left: 20px; }
+.consent-card li { margin: 4px 0; }
+.consent-purposes { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px; margin: 16px 0; display: grid; gap: 12px; }
+.consent-purposes legend { font-weight: 700; padding: 0 6px; }
+.consent-purposes .tag { margin-left: 6px; vertical-align: 1px; }
+.consent-done { text-align: left; }
+.consent-lock { display: grid; gap: 12px; max-width: 720px; }
+.consent-lock h2 { margin: 0; }
+.consent-lock p { margin: 0; }
+.consent-change { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.consent-change .field { flex: 1 1 260px; margin: 0; }
+.consent-box { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 14px 16px; display: grid; gap: 10px; background: var(--paper); }
+.consent-box .section-label { margin: 0; }
+.consent-box .history { margin: 0; }
+.pill--granted { background: var(--good-bg); color: var(--good); }
+.pill--refused, .pill--withdrawn { background: var(--bad-bg); color: var(--bad); }
 
 /* Legal / prose pages */
 .prose { max-width: 760px; }
@@ -1657,6 +1677,18 @@ button.tile:hover { border-color: var(--ink); }
 </section>
 
 </div>
+<div data-route="consent" hidden>
+
+<section class="section">
+  <div class="container auth-wrap">
+    <div class="auth-card consent-card" id="consent-card" aria-live="polite">
+      <h1>Parental consent</h1>
+      <p class="card-muted">Loading…</p>
+    </div>
+  </div>
+</section>
+
+</div>
 <div data-route="about" hidden>
 
 <section class="page-head">
@@ -2456,7 +2488,10 @@ button.tile:hover { border-color: var(--ink); }
     privacy: ["privacy", "Privacy · TutorED"],
     admin: ["admin", "Admin · TutorED"],
     dashboard: ["dashboard", "My dashboard · TutorED"],
+    consent: ["consent", "Parental consent · TutorED"],
+    "consent-withdraw": ["consent", "Withdraw consent · TutorED"],
   };
+  let ROUTE_PARAMS = new URLSearchParams(); // the part after "?" in links like #consent?t=...
   const NAV_KEY = { home: "index" };
 
   function showRoute(route) {
@@ -2483,11 +2518,15 @@ button.tile:hover { border-color: var(--ink); }
     if (section === "dashboard" && window.TutorEDDash) window.TutorEDDash.enter();
     if (section === "login") Login.refresh();
     if (section === "set-password") SetPassword.refresh();
+    if (section === "consent") ConsentPage.enter(route, ROUTE_PARAMS);
     window.scrollTo(0, 0);
   }
 
   function onHash() {
-    const h = decodeURIComponent(location.hash.slice(1));
+    const full = location.hash.slice(1);
+    const qi = full.indexOf("?");
+    const h = decodeURIComponent(qi >= 0 ? full.slice(0, qi) : full);
+    ROUTE_PARAMS = new URLSearchParams(qi >= 0 ? full.slice(qi + 1) : "");
     if (!h) return showRoute("home");
     if (ROUTES[h]) return showRoute(h);
     // In-page anchor (e.g. #find): reveal its section, then scroll to it.
@@ -2504,6 +2543,95 @@ button.tile:hover { border-color: var(--ink); }
     showRoute("home");
   }
   window.addEventListener("hashchange", onHash);
+
+  /* ---------- Parental consent pages (opened from the email sent to a parent) ---------- */
+  const ConsentPage = (() => {
+    const VERSION = "2026-11-v1"; // must match CONSENT_VERSION in the parental-consent Edge Function
+    let token = "", route = "", info = null;
+    const card = () => $("#consent-card");
+    const api = () => window.TutorEDConsent;
+    const errBox = (title, text) => `<h1>${esc(title)}</h1><div class="notice" role="alert">${esc(text)}</div><p class="auth-foot">Need help? <a href="#contact">Contact TutorED</a></p>`;
+    async function enter(r, params) {
+      route = r; token = params.get("t") || ""; info = null;
+      const c = card();
+      const title = r === "consent-withdraw" ? "Withdraw consent" : "Parental consent";
+      if (!api()) { c.innerHTML = errBox(title, "This page only works on the live TutorED website."); return; }
+      if (!token) { c.innerHTML = errBox(title, "This link isn't complete. Open it again from the email, or copy the whole link."); return; }
+      c.innerHTML = `<h1>${esc(title)}</h1><p class="card-muted">Loading…</p>`;
+      try {
+        info = r === "consent-withdraw" ? await api().withdrawView(token) : await api().view(token);
+        r === "consent-withdraw" ? drawWithdraw() : drawConsent();
+      } catch (e) { c.innerHTML = errBox(title, e.message); }
+    }
+    function drawConsent() {
+      const v = info, kid = esc(v.student), kidFull = esc(v.studentName);
+      card().innerHTML = `<span class="eyebrow">For parents and guardians</span>
+        <h1>Consent for ${kid}'s TutorED account</h1>
+        <p>${kidFull} signed up to TutorED and gave your email (${esc(v.parentEmail)}) as their parent or guardian. Because ${kid} is under 18, they can't book lessons, message tutors or use study materials until you decide.</p>
+        <h2>What TutorED is</h2>
+        <p class="card-muted">An online tutoring service in Sri Lanka. Students book live one-to-one lessons with tutors whose identity and qualifications TutorED has checked.</p>
+        <h2>What we keep about ${kid}</h2>
+        <ul class="card-muted"><li>Name, email address (and phone number if given), age and school level, and your email address.</li><li>Lessons booked, messages with tutors, and homework or files shared with tutors.</li></ul>
+        <h2>Who can see it</h2>
+        <ul class="card-muted"><li>Tutors ${kid} books with see ${kid}'s name, level, messages and homework.</li><li>TutorED's administrators, to run and protect the service.</li><li>Google, which hosts the lesson video calls (Google Meet) and sends the lesson invitations.</li><li>We don't sell ${kid}'s information or show advertising.</li></ul>
+        <form id="consent-form" class="form" novalidate>
+          <fieldset class="consent-purposes"><legend>Tick what you agree to</legend>
+            ${v.purposes.map((p) => `<label class="check"><input type="checkbox" name="purpose" value="${esc(p.id)}"> <span>${esc(p.label)}${p.required ? ' <span class="tag">Required</span>' : ""}</span></label>`).join("")}
+          </fieldset>
+          <div class="field"><label for="cp-name">Your full name</label><input id="cp-name" autocomplete="name" required></div>
+          <div class="field"><label for="cp-rel">Your relationship to ${kid}</label><select id="cp-rel"><option value="Mother">Mother</option><option value="Father">Father</option><option value="Legal guardian">Legal guardian</option><option value="Other guardian">Other guardian</option></select></div>
+          <label class="check"><input type="checkbox" id="cp-guardian"> <span>I am ${kid}'s parent or legal guardian.</span></label>
+          <p class="hint">You can withdraw consent at any time with the link in the confirmation email we send you.</p>
+          <div class="btn-row"><button class="btn btn--primary" type="submit">I give consent</button><button class="btn btn--outline" type="button" data-consent-refuse>I don't give consent</button></div>
+          <p class="form-msg" id="cp-msg" role="status" aria-live="polite"></p>
+        </form>`;
+    }
+    function drawWithdraw() {
+      const v = info, kid = esc(v.student);
+      if (v.status !== "granted") { card().innerHTML = `<h1>Withdraw consent</h1><p>Consent for ${esc(v.studentName)}'s account isn't active, so there's nothing to withdraw.</p><p class="auth-foot">Need help? <a href="#contact">Contact TutorED</a></p>`; return; }
+      card().innerHTML = `<span class="eyebrow">For parents and guardians</span>
+        <h1>Withdraw consent for ${kid}</h1>
+        <p>${v.parentName ? esc(v.parentName) + " gave" : "You gave"} consent for ${esc(v.studentName)}'s TutorED account${v.decidedAt ? ` on ${esc(fmtDate(v.decidedAt))}` : ""}. If you withdraw it, ${kid}'s account is locked straight away: no lessons, messages or study materials.</p>
+        <form id="withdraw-form" class="form" novalidate>
+          <label class="check"><input type="checkbox" id="cw-ok"> <span>I want to withdraw consent for ${kid}'s account.</span></label>
+          <div class="btn-row"><button class="btn btn--danger" type="submit">Withdraw consent</button></div>
+          <p class="form-msg" id="cw-msg" role="status" aria-live="polite"></p>
+        </form>`;
+    }
+    function done(title, text) { card().innerHTML = `<div class="consent-done"><span class="eyebrow">Thank you</span><h1>${esc(title)}</h1><p>${esc(text)}</p><p class="card-muted">You can close this page.</p></div>`; window.scrollTo(0, 0); }
+    async function decide(grant) {
+      const f = $("#consent-form"), m = $("#cp-msg");
+      const say = (t, err) => { m.textContent = t; m.className = "form-msg" + (err ? " err" : ""); };
+      const purposes = $$("input[name=purpose]:checked", f).map((x) => x.value);
+      const parentName = $("#cp-name").value.trim();
+      if (grant) {
+        const req = info.purposes.filter((p) => p.required).map((p) => p.id);
+        if (!req.every((r) => purposes.includes(r))) return say("To give consent, tick all the boxes marked Required. If you don't agree to them, choose \"I don't give consent\".", true);
+      }
+      if (parentName.length < 2) { $("#cp-name").focus(); return say("Enter your full name.", true); }
+      if (!$("#cp-guardian").checked) return say(`Tick the box to confirm you are ${info.student}'s parent or legal guardian.`, true);
+      $$("button", f).forEach((b) => (b.disabled = true));
+      say("Saving…");
+      try {
+        const r = await api().decide({ token, version: VERSION, grant, purposes, parentName, relationship: $("#cp-rel").value, guardian: true });
+        if (r.status === "granted") done("Consent given", `${info.student} can now use TutorED. We've emailed you a confirmation with a link to withdraw consent if you change your mind.`);
+        else done("Your answer is recorded", `You didn't give consent, so ${info.student}'s account stays locked. If you'd like it deleted, contact TutorED.`);
+      } catch (e) { say(e.message, true); $$("button", f).forEach((b) => (b.disabled = false)); }
+    }
+    document.addEventListener("submit", async (e) => {
+      if (e.target.id === "consent-form") { e.preventDefault(); return decide(true); }
+      if (e.target.id === "withdraw-form") {
+        e.preventDefault();
+        const m = $("#cw-msg"), b = $("button", e.target);
+        if (!$("#cw-ok").checked) { m.className = "form-msg err"; m.textContent = "Tick the box to confirm."; return; }
+        b.disabled = true; m.className = "form-msg"; m.textContent = "Saving…";
+        try { await api().withdraw(token); done("Consent withdrawn", `${info.student}'s account is now locked. We've emailed you a confirmation. If you'd also like the account deleted, contact TutorED.`); }
+        catch (err) { m.className = "form-msg err"; m.textContent = err.message; b.disabled = false; }
+      }
+    });
+    document.addEventListener("click", (e) => { if (e.target.closest("[data-consent-refuse]")) decide(false); });
+    return { enter };
+  })();
 
   /* ====================================================================
      2. CONNECT TO THE TEST BACK END
@@ -3125,6 +3253,92 @@ button.tile:hover { border-color: var(--ink); }
     return list;
   }
 
+  // Redraw a panel without losing what an admin is typing in it.
+  function setKeep(el, html) {
+    if (el.__html === html) return;
+    const vals = {};
+    $$("input[id], textarea[id], select[id]", el).forEach((f) => (vals[f.id] = f.type === "checkbox" ? f.checked : f.value));
+    const focus = document.activeElement && el.contains(document.activeElement) ? document.activeElement.id : "";
+    el.innerHTML = html; el.__html = html;
+    Object.keys(vals).forEach((id) => { const f = document.getElementById(id); if (!f || !el.contains(f)) return; if (f.type === "checkbox") f.checked = vals[id]; else f.value = vals[id]; });
+    if (focus) { const f = document.getElementById(focus); if (f) f.focus(); }
+  }
+
+  /* ---------- Parental consent (admin view) ---------- */
+  const CONSENT = {};
+  const consentLoading = new Set();
+  const CONSENT_LABEL = { pending: "Waiting for parent", granted: "Consent given", refused: "Parent said no", withdrawn: "Consent withdrawn" };
+  async function loadAdminConsent(id) {
+    if (consentLoading.has(id)) return;
+    consentLoading.add(id);
+    try { CONSENT[id] = await window.TutorEDConsent.adminGet(id); }
+    catch (e) { CONSENT[id] = { error: e.message || "Couldn't load parental consent." }; }
+    consentLoading.delete(id);
+    render();
+  }
+  function consentBox(r) {
+    if (!HOSTED || !window.TutorEDConsent || r.role === "tutor" || r.adminOnly || r.sample) return "";
+    const id = esc(r.id), c = CONSENT[r.id];
+    const head = `<p class="section-label">Parental consent</p>`;
+    const msg = `<p class="form-msg" data-cs-msg role="status" aria-live="polite"></p>`;
+    if (c === undefined) { loadAdminConsent(r.id); return `<div class="consent-box">${head}<p class="muted">Checking…</p></div>`; }
+    if (c.error) return `<div class="consent-box">${head}<p class="form-msg err">${esc(c.error)}</p></div>`;
+    if (!c.required) return `<div class="consent-box">${head}<p class="muted">Not needed. This student isn't under 18.</p><div class="btn-row"><button class="btn btn--ghost btn--sm" type="button" data-cs="require">Require parental consent</button></div>${msg}</div>`;
+    const PURPOSE = { account: "Account", lessons: "Lessons", messages: "Messages and files", updates: "Update emails" };
+    const kv = [
+      ["Status", `<span class="pill pill--${esc(c.status)}">${esc(CONSENT_LABEL[c.status] || c.status)}</span>`],
+      ["Parent's email", esc(c.parentEmail || "—")],
+      ["Email last sent", c.requestedAt ? esc(fmtDate(c.requestedAt)) : "Not sent yet"],
+      ...(c.decidedAt ? [["Decided", esc(fmtDate(c.decidedAt)) + (c.method ? ` · ${c.method === "phone" ? "by phone (admin)" : "by email link"}` : "")]] : []),
+      ...(c.parentName ? [["Parent or guardian", esc(c.parentName) + (c.relationship ? ` (${esc(c.relationship)})` : "")]] : []),
+      ...(c.status === "granted" && (c.purposes || []).length ? [["Agreed to", esc(c.purposes.map((p) => PURPOSE[p] || p).join(", "))]] : []),
+      ...(c.status === "withdrawn" && c.withdrawnAt ? [["Withdrawn", esc(fmtDate(c.withdrawnAt))]] : []),
+    ];
+    const actions = c.status === "granted"
+      ? `<div class="field"><label for="cs-wnote-${id}">Note</label><input id="cs-wnote-${id}" placeholder="For example: parent phoned on 0771234567"></div>
+         <div class="btn-row"><button class="btn btn--outline btn--sm" type="button" data-cs="withdraw">Record that consent was withdrawn</button></div>`
+      : `<div class="btn-row"><button class="btn btn--primary btn--sm" type="button" data-cs="send">${c.requestedAt ? "Send the consent email again" : "Send the consent email"}</button></div>
+         <p class="note-inline">Or, if you've spoken to the parent or guardian by phone and they agreed:</p>
+         <div class="field"><label for="cs-name-${id}">Parent or guardian's full name</label><input id="cs-name-${id}" autocomplete="off"></div>
+         <div class="field"><label for="cs-pnote-${id}">Note (phone number, date of call)</label><input id="cs-pnote-${id}" autocomplete="off"></div>
+         <label class="check"><input type="checkbox" id="cs-ok-${id}"> <span>I spoke to this student's parent or legal guardian and they agreed to the account, lessons, and messages with tutors.</span></label>
+         <div class="btn-row"><button class="btn btn--outline btn--sm" type="button" data-cs="phone">Record consent given by phone</button></div>`;
+    const hist = (c.history || []).slice().reverse();
+    return `<div class="consent-box">${head}
+      <dl class="kv">${kv.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${v}</dd></div>`).join("")}</dl>
+      ${actions}
+      <div class="btn-row">${c.status !== "pending" ? '<button class="btn btn--ghost btn--sm" type="button" data-cs="reset">Reset to waiting</button>' : ""}<button class="btn btn--ghost btn--sm" type="button" data-cs="remove">Remove requirement (student is 18 or over)</button></div>
+      ${msg}
+      ${hist.length ? `<ul class="history">${hist.map((h) => `<li><time datetime="${esc(h.at)}">${esc(fmtDate(h.at))}</time><span>${esc(h.event)}${h.note ? ` — ${esc(h.note)}` : ""}</span></li>`).join("")}</ul>` : ""}
+    </div>`;
+  }
+  async function consentAction(id, act, root) {
+    const m = $("[data-cs-msg]", root);
+    const say = (t, err) => { if (m) { m.textContent = t; m.className = "form-msg" + (err ? " err" : ""); } };
+    const api = window.TutorEDConsent;
+    const val = (k) => { const f = document.getElementById(`cs-${k}-${id}`); return f ? (f.type === "checkbox" ? f.checked : f.value.trim()) : ""; };
+    try {
+      if (act === "send") {
+        say("Sending…");
+        const r = await api.request(id);
+        CONSENT[id] = await api.adminGet(id); render();
+        setStatus(r.already ? "Consent is already given." : `Consent email sent to ${r.sentTo}.`);
+        return;
+      }
+      if (act === "phone") {
+        if (val("name").length < 2) return say("Enter the parent or guardian's full name.", true);
+        if (!val("ok")) return say("Tick the box to confirm you spoke to them.", true);
+        CONSENT[id] = await api.adminSet(id, "phone", val("name"), val("pnote"));
+      } else if (act === "withdraw") CONSENT[id] = await api.adminSet(id, "withdraw", null, val("wnote"));
+      else if (act === "remove") {
+        if (!root.__removeAsked) { root.__removeAsked = true; return say("Only do this if the student is 18 or over. Click Remove again to confirm.", true); }
+        CONSENT[id] = await api.adminSet(id, "remove");
+      } else CONSENT[id] = await api.adminSet(id, act);
+      render();
+      setStatus("Parental consent updated.");
+    } catch (e) { say(e.message || "That didn't work.", true); }
+  }
+
   function renderSignups() {
     const rows = filteredSignups();
     $("#su-body").innerHTML = rows.map((r) => `<tr class="${A.selected === r.id && A.tab === "signups" ? "is-selected" : ""}">
@@ -3141,7 +3355,7 @@ button.tile:hover { border-color: var(--ink); }
     empty.textContent = A.rows.length ? "No sign-ups match this filter." : "No sign-ups yet. They appear here the moment someone signs up.";
     const slot = $("#su-detail");
     const sel = A.tab === "signups" && A.rows.find((r) => r.id === A.selected);
-    slot.innerHTML = sel ? detailHtml(sel) : "";
+    setKeep(slot, sel ? detailHtml(sel) : "");
   }
 
   function renderVerify() {
@@ -3150,7 +3364,7 @@ button.tile:hover { border-color: var(--ink); }
       ? tutors.map((r) => `<li><button type="button" data-select="${esc(r.id)}" aria-current="${A.selected === r.id}"><div class="avatar" aria-hidden="true">${esc(initials(nameOf(r)))}</div><div class="grow"><strong>${esc(nameOf(r))}</strong><small>${esc(r.subjects || "No subjects")} · ${(r.docs || []).length} file${(r.docs || []).length === 1 ? "" : "s"}</small><span class="queue-pill">${pill(r.status)}</span></div></button></li>`).join("")
       : `<li class="empty">${A.vFilter === "pending" ? "No tutors are waiting for review." : "No tutors in this list."}</li>`;
     const sel = A.tab === "verify" && A.rows.find((r) => r.id === A.selected && r.role === "tutor");
-    $("#v-detail").innerHTML = sel ? detailHtml(sel) : `<div class="detail"><p class="empty">Choose a tutor to see their details and documents.</p></div>`;
+    setKeep($("#v-detail"), sel ? detailHtml(sel) : `<div class="detail"><p class="empty">Choose a tutor to see their details and documents.</p></div>`);
   }
 
   function docHtml(d) {
@@ -3197,6 +3411,7 @@ button.tile:hover { border-color: var(--ink); }
       html += `<div class="btn-row">${r.status === "suspended"
         ? '<button class="btn btn--outline" type="button" data-decide="active">Reactivate account</button>'
         : '<button class="btn btn--outline" type="button" data-decide="suspended">Suspend account</button>'}</div><p class="form-msg" data-decide-msg role="status" aria-live="polite"></p>`;
+      html += consentBox(r);
     }
     html += `<div><p class="section-label">History</p><ul class="history">${hist.map((h) => `<li><time datetime="${esc(h.at)}">${esc(fmtDate(h.at))}</time><span>${esc(h.action)}${h.note ? ` — ${esc(h.note)}` : ""}</span></li>`).join("")}</ul></div>
       <div class="btn-row"><button class="btn btn--dark btn--sm" type="button" data-view-as="${esc(r.id)}">Open their dashboard</button><button class="btn btn--ghost danger-text btn--sm" type="button" data-delete>Delete this account</button></div>
@@ -3422,6 +3637,7 @@ button.tile:hover { border-color: var(--ink); }
       if (t.dataset.select) { A.selected = t.dataset.select; return render(); }
       if (t.dataset.viewAs) { Session.set(t.dataset.viewAs); location.hash = "dashboard"; return; }
       const root = t.closest("[data-detail]");
+      if (t.dataset.cs && root) return consentAction(root.dataset.detail, t.dataset.cs, root);
       if (t.dataset.decide && root) return decide(root.dataset.detail, t.dataset.decide, root);
       if (t.hasAttribute("data-delete") && root) { $("[data-delete-confirm]", root).hidden = false; return; }
       if (t.hasAttribute("data-delete-no") && root) { $("[data-delete-confirm]", root).hidden = true; return; }
@@ -3534,11 +3750,85 @@ button.tile:hover { border-color: var(--ink); }
     // Homework and documents between a tutor and a student
     work: [], student: null, workDraft: { title: "", kind: "homework", due: "", note: "" },
     photoBlob: null, docMsg: "", docErr: false,
+    // Parental consent (under-18 students): null until known
+    consent: null, consentBusy: false, consentMsg: "", consentErr: false, consentAutoTried: false,
   };
+
+  /* ---------- Parental consent lock (students under 18) ----------
+     The database is what really locks the account; this just explains it and lets the
+     student send (or re-send) the email to their parent. */
+  let consentTimer = null;
+  const consentApi = () => (X.HOSTED && window.TutorEDConsent) || null;
+  const consentLocked = () => D.role === "student" && !!D.consent && D.consent.required && D.consent.status !== "granted";
+  async function loadConsent(auto) {
+    const api = consentApi();
+    clearTimeout(consentTimer);
+    if (!api || D.role !== "student" || !D.id || D.id !== S.uid) { D.consent = null; return; }
+    try {
+      const was = consentLocked();
+      D.consent = await api.status();
+      const now = consentLocked();
+      if (was && !now) { subscribeRole(); flash("Your parent or guardian has given consent. Welcome to TutorED!"); }
+      if (now && auto && !D.consent.requestedAt && D.consent.parentEmail && !D.consentAutoTried && D.consent.status === "pending") { D.consentAutoTried = true; sendConsent(true); }
+      // Check again every 15 seconds while locked, and every minute after (a parent can withdraw).
+      if (D.consent.required) consentTimer = setTimeout(() => loadConsent(), now ? 15000 : 60000);
+    } catch (e) { consentTimer = setTimeout(() => loadConsent(), 30000); }
+    render();
+  }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && D.role === "student" && D.consent && D.consent.required) loadConsent(); });
+  async function sendConsent(auto) {
+    const api = consentApi();
+    if (!api || D.consentBusy) return;
+    D.consentBusy = true; D.consentErr = false; D.consentMsg = auto ? "Emailing your parent or guardian…" : "Sending…"; render();
+    try {
+      const r = await api.request();
+      D.consentMsg = r.already ? "" : `Email sent to ${r.sentTo}. Ask them to check their inbox and spam folder.`;
+      D.consentBusy = false;
+      await loadConsent();
+    } catch (e) { D.consentMsg = e.message || "The email couldn't be sent."; D.consentErr = true; D.consentBusy = false; render(); }
+  }
+  async function changeParentEmail(form) {
+    const inp = $("#lock-parent", form);
+    const v = (inp.value || "").trim().toLowerCase();
+    const say = (t) => { D.consentMsg = t; D.consentErr = true; render(); };
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return say("Enter a valid email address for your parent or guardian.");
+    if (v === String(D.acct.email || "").toLowerCase()) return say("Your parent or guardian's email must be different from yours.");
+    D.consentMsg = "Saving…"; D.consentErr = false; render();
+    try {
+      if (v !== String(D.consent.parentEmail || "").toLowerCase()) await saveAcct({ parentEmail: v });
+      forget(form);
+      D.consent = await consentApi().status();
+      await sendConsent();
+    } catch (e) { say(friendlyError(e).message); }
+  }
+  function lockHtml() {
+    const c = D.consent;
+    let status;
+    if (c.status === "refused") status = `<div class="notice" role="note">Your parent or guardian chose not to give consent${c.decidedAt ? ` on ${esc(fmtDate(c.decidedAt))}` : ""}. If they change their mind, send the email again.</div>`;
+    else if (c.status === "withdrawn") status = `<div class="notice" role="note">Your parent or guardian withdrew consent${c.withdrawnAt ? ` on ${esc(fmtDate(c.withdrawnAt))}` : ""}. If they change their mind, send the email again.</div>`;
+    else if (c.requestedAt) status = `<p>We emailed <strong>${esc(c.parentEmail)}</strong> on ${esc(fmtDate(c.requestedAt))}. Ask them to open the email from TutorED and follow the link. The link lasts 7 days.</p>`;
+    else status = c.parentEmail ? `<p>We haven't emailed your parent or guardian yet.</p>` : `<p>Add your parent or guardian's email below so we can ask them.</p>`;
+    return `<section class="card consent-lock">
+      <span class="section-label">Waiting for a parent or guardian</span>
+      <h2 class="h-card">Your account needs a parent's OK</h2>
+      <p>Because you're under 18, a parent or guardian has to agree before you can browse tutors, book lessons, message tutors or use study packs.</p>
+      ${status}
+      <div class="btn-row"><button class="btn btn--primary" type="button" data-consent-send${D.consentBusy || !c.parentEmail ? " disabled" : ""}>${c.requestedAt ? "Send the email again" : "Email my parent or guardian"}</button><button class="btn btn--outline" type="button" data-consent-check>Check again</button></div>
+      <form class="form consent-change" id="consent-change" novalidate>
+        <div class="field"><label for="lock-parent">Parent or guardian's email</label><input id="lock-parent" type="email" autocomplete="off" value="${esc(c.parentEmail || "")}"></div>
+        <button class="btn btn--outline" type="submit"${D.consentBusy ? " disabled" : ""}>Save and send</button>
+      </form>
+      <p class="form-msg${D.consentErr ? " err" : ""}" id="consent-msg" role="status" aria-live="polite">${esc(D.consentMsg)}</p>
+      <p class="note-inline">Didn't arrive? Ask them to check their spam folder. You can also <a href="#contact">contact us</a> and we'll confirm with your parent or guardian by phone.</p>
+      <div class="btn-row"><button class="btn btn--ghost btn--sm" type="button" data-logout>Log out</button></div>
+    </section>`;
+  }
 
   function unsubscribe(list) { list.splice(0).forEach((u) => { try { u(); } catch {} }); }
   function reset() {
     unsubscribe(D.unsubs); unsubscribe(D.roleUnsubs);
+    clearTimeout(consentTimer);
+    Object.assign(D, { consent: null, consentBusy: false, consentMsg: "", consentErr: false, consentAutoTried: false });
     Object.assign(D, { id: null, acct: null, role: null, tab: "overview", tutors: [], tutorDoc: null, bookings: [], loaded: false, settingsDirty: false, flash: "", chat: [], chatPeer: null, chatDraft: "", chatLoaded: false, chatErr: "", chatMobileThread: false, work: [], student: null, photoBlob: null, docMsg: "", docErr: false });
   }
 
@@ -3583,6 +3873,7 @@ button.tile:hover { border-color: var(--ink); }
       D.role = D.acct.role;
       if (!snap.metadata.fromCache) { D.loaded = true; clearTimeout(D.timer); }
       if (D.role !== prevRole) subscribeRole();
+      if (D.role === "student" && (D.consent === null || consentLocked())) loadConsent(D.consent === null);
       render();
     }, (e) => flash("Couldn't load your account: " + friendlyError(e).message, true)));
   }
@@ -3707,6 +3998,17 @@ button.tile:hover { border-color: var(--ink); }
     if (wantTab) { const w = wantTab; wantTab = null; if (tabs.some(([k]) => k === w)) { D.tab = w; D.student = null; D.settingsDirty = false; D.flash = ""; } }
     if (!tabs.some(([k]) => k === D.tab)) D.tab = "overview";
     $("#dash-hello").textContent = `Hi, ${acctName().split(" ")[0]}`;
+    const tabsWrap = $(".dash-tabs-wrap");
+    if (consentLocked()) {
+      $("#dash-role").innerHTML = `<span class="chip">Student account</span> <span class="pill pill--pending">Waiting for a parent's consent</span>`;
+      $("#dash-admin-note").hidden = !S.isAdmin;
+      if (tabsWrap) tabsWrap.hidden = true;
+      const lp = $("#dash-panel"), lh = lockHtml();
+      if (lp.__lock !== lh) { swapHtml(lp, lh); lp.__lock = lh; }
+      return;
+    }
+    if (tabsWrap) tabsWrap.hidden = false;
+    $("#dash-panel").__lock = null;
     const roleLabel = D.role === "tutor" ? "Tutor account" : "Student account";
     const st = D.acct.status;
     $("#dash-role").innerHTML = `<span class="chip">${roleLabel}</span>${D.acct.sample ? ' <span class="tag tag--sample">Sample</span>' : ""}${D.role === "tutor" ? ` <span class="pill pill--${esc(st)}">${esc({ pending: "Waiting for verification", approved: "Verified", rejected: "Not approved", info_requested: "More info needed" }[st] || st)}</span>` : ""}`;
@@ -4605,6 +4907,8 @@ button.tile:hover { border-color: var(--ink); }
       const t = e.target.closest("button");
       if (!t || t.disabled) return;
       const d = t.dataset;
+      if (t.hasAttribute("data-consent-send")) return sendConsent();
+      if (t.hasAttribute("data-consent-check")) { D.consentMsg = "Checking…"; D.consentErr = false; render(); return loadConsent().then(() => { if (consentLocked()) { D.consentMsg = "Not approved yet."; render(); } }); }
       if (d.dashTab) { D.tab = d.dashTab; D.settingsDirty = false; D.flash = ""; D.student = null; D.photoBlob = null; D.docMsg = ""; if (D.tab === "messages") { D.chatMobileThread = false; markThreadRead(); } return render(); }
       if (d.chatWith || d.chatOpen) return openChat(d.chatWith || d.chatOpen);
       if (t.hasAttribute("data-chat-back")) { D.chatMobileThread = false; return render(); }
@@ -4700,6 +5004,7 @@ button.tile:hover { border-color: var(--ink); }
     root.addEventListener("submit", (e) => {
       const f = e.target;
       e.preventDefault();
+      if (f.id === "consent-change") return changeParentEmail(f);
       if (f.id === "slot-form") return run(() => addSlots(f));
       if (f.id === "doc-form") {
         const b = $("button[type=submit]", f), m = $("#doc-msg");
