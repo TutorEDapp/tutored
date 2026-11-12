@@ -370,6 +370,42 @@
     async deleteUser(id) { const { error } = await sb.rpc("admin_delete_user", { target: id }); if (error) throw new Error(error.message || "The account couldn't be deleted."); pokeAll(); },
   };
 
+  /* ---------- Parental consent for students under 18 ----------
+     The lock itself is enforced by the database. The Edge Function "parental-consent"
+     emails the parent and records their decision. */
+  async function consentCall(body) {
+    const { data, error } = await sb.functions.invoke(CFG.consentFunction || "parental-consent", { body });
+    if (error) {
+      let msg = error.message;
+      try { const b = await error.context.json(); if (b && b.error) msg = b.error; } catch (e) {}
+      if (/failed to send a request|failed to fetch/i.test(msg || "")) msg = "Can't reach TutorED right now. Check your connection and try again.";
+      throw new Error(msg || "Something went wrong. Please try again.");
+    }
+    if (data && data.error) throw new Error(data.error);
+    return data || {};
+  }
+  window.TutorEDConsent = {
+    async status() {
+      await sessionReady;
+      if (!uid()) return { required: false };
+      const { data, error } = await sb.rpc("consent_status");
+      if (error) { if (error.code === "PGRST202") return { required: false }; throw nice(error); } // not installed yet
+      return data || { required: false };
+    },
+    request(studentId) { return consentCall(studentId ? { action: "request", studentId } : { action: "request" }); },
+    view(token) { return consentCall({ action: "view", token }); },
+    decide(o) { return consentCall({ ...o, action: "decide" }); },
+    withdrawView(token) { return consentCall({ action: "withdraw-view", token }); },
+    withdraw(token) { return consentCall({ action: "withdraw", token, confirm: true }); },
+    async adminGet(id) { const { data, error } = await sb.rpc("admin_consent_get", { p_student: id }); if (error) throw nice(error); return data || { required: false }; },
+    async adminSet(id, action, parentName, note) {
+      const { data, error } = await sb.rpc("admin_consent_set", { p_student: id, p_action: action, p_parent_name: parentName || null, p_note: note || null });
+      if (error) throw new Error(error.message || "That didn't work.");
+      pokeAll();
+      return data || { required: false };
+    },
+  };
+
   window.TutorEDHosted = true;
   window.claude = { use: async (name) => ({ db, user, assets })[name] || null };
 })();
