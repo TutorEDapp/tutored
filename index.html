@@ -6,9 +6,45 @@
 <meta name="description" content="TutorED: find verified tutors for online lessons in Sri Lanka.">
 <title>TutorED</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+<script>
+/* Cookie choice. Nothing from other companies (fonts, analytics, pixels, embeds) loads until the visitor clicks Accept.
+   To add a third-party script later, do NOT add it as a normal script tag. Either give the tag
+   type="text/plain" and the attribute data-cookie-consent (it is switched on after Accept),
+   or load it inside TutorEDCookies.onAccept(function () { ... }).                                  */
+(function () {
+  var KEY = "tutored.cookies", waiting = [], loaded = false;
+  function choice() { try { return localStorage.getItem(KEY) || ""; } catch (e) { return ""; } }
+  function addLink(rel, href, cross) { var l = document.createElement("link"); l.rel = rel; l.href = href; if (cross) l.crossOrigin = ""; l.setAttribute("data-cookie-loaded", ""); document.head.appendChild(l); }
+  function loadThirdParty() {
+    if (loaded) return; loaded = true;
+    addLink("preconnect", "https://fonts.googleapis.com");
+    addLink("preconnect", "https://fonts.gstatic.com", true);
+    addLink("stylesheet", "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap");
+    var run = function () {
+      Array.prototype.forEach.call(document.querySelectorAll('script[type="text/plain"][data-cookie-consent]'), function (old) {
+        var n = document.createElement("script");
+        Array.prototype.forEach.call(old.attributes, function (a) { if (a.name !== "type" && a.name !== "data-cookie-consent") n.setAttribute(a.name, a.value); });
+        if (!old.src) n.text = old.text;
+        old.parentNode.replaceChild(n, old);
+      });
+      waiting.splice(0).forEach(function (fn) { try { fn(); } catch (e) {} });
+    };
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run); else run();
+  }
+  window.TutorEDCookies = {
+    choice: choice,
+    accepted: function () { return choice() === "accepted"; },
+    onAccept: function (fn) { if (loaded && document.readyState !== "loading") { try { fn(); } catch (e) {} } else waiting.push(fn); },
+    set: function (v) {
+      var was = choice();
+      try { localStorage.setItem(KEY, v); } catch (e) {}
+      if (v === "accepted") loadThirdParty();
+      else if (was === "accepted" || loaded) location.reload(); // switch off what was already loaded
+    }
+  };
+  if (choice() === "accepted") loadThirdParty();
+})();
+</script>
 <script src="js/supabase.js"></script>
 <script>window.TUTORED_CONFIG = {"supabaseUrl": "https://dxfxnnifyxukuglftwgg.supabase.co", "publishableKey": "sb_publishable_cTGD_64WlPPxzmwe-8O8KA_gcjqc-UD", "lessonFunction": "lesson-link", "storageBucket": "tutor-docs"};</script>
 <script src="js/backend.js?v=5"></script>
@@ -411,6 +447,14 @@ input[type="radio"] { width: 20px; height: 20px; min-height: 0; padding: 0; acce
 .form-msg { font-size: var(--fs-sm); margin: 0; min-height: 1.4em; }
 .form-msg.ok { color: var(--success); }
 .form-msg.err { color: var(--error); }
+.cookie-bar { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 3000; max-width: 720px; margin: 0 auto; background: var(--white); color: var(--text); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: 0 10px 40px rgba(20, 22, 31, 0.22); padding: 16px 18px; display: grid; gap: 12px; }
+.cookie-bar[hidden] { display: none; }
+.cookie-bar h2 { font-size: 1.0625rem; margin: 0; }
+.cookie-bar p { margin: 0; font-size: 0.875rem; color: var(--text-muted); }
+.cookie-bar .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.cookie-bar .btn { flex: 1 1 140px; justify-content: center; }
+.footer-cookie { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+.footer-cookie:hover { text-decoration: underline; }
 .trials { display: grid; gap: 10px; }
 .trial { border: 1px solid var(--cornflower); background: var(--cornflower-soft); border-radius: 12px; padding: 12px 14px; display: grid; gap: 8px; }
 .trial-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; align-items: baseline; }
@@ -1897,7 +1941,7 @@ button.tile:hover { border-color: var(--ink); }
       <p>We use these service providers to run TutorED:</p>
       <ul>
         <li><strong>Supabase:</strong> login, database and file storage.</li>
-        <li><strong>Google:</strong> Calendar and Meet for lessons, Gmail for our emails, and the fonts used on our pages.</li>
+        <li><strong>Google:</strong> Calendar and Meet for lessons, Gmail for our emails, and, only if you accept cookies, the fonts used on our pages.</li>
         <li><strong>GitHub:</strong> website hosting.</li>
       </ul>
       <p>They only process data to provide their service to us. We may also share information if the law requires it, or to protect someone's safety.</p>
@@ -1922,8 +1966,9 @@ button.tile:hover { border-color: var(--ink); }
       <p>We only collect what is needed for lessons. We never use children's data for marketing.</p>
 
       <h2>8. Cookies and browser storage</h2>
-      <p>We don't use advertising or analytics cookies. We do store a login token in your browser, so you stay signed in. If you sign out or clear your browser data, it is removed.</p>
-      <p>Our pages load fonts from Google. This means your browser contacts Google's servers, which see your IP address.</p>
+      <p>We don't use advertising or analytics cookies. We do store a login token in your browser, so you stay signed in, and we remember your cookie choice. These are needed for the site to work. If you sign out or clear your browser data, they are removed.</p>
+      <p>When you first visit, we ask whether you accept optional content from other companies. At the moment the only such content is Google Fonts: if you accept, your browser fetches fonts from Google's servers, which see your IP address. If you reject, or haven't chosen yet, nothing is loaded from other companies and the site uses your device's own fonts.</p>
+      <p>You can change your choice at any time with <button class="link-btn" type="button" data-cookie-settings>Cookie settings</button>, also linked at the bottom of every page.</p>
 
       <h2>9. How long we keep data</h2>
       <ul>
@@ -2296,6 +2341,7 @@ button.tile:hover { border-color: var(--ink); }
           <li><a href="#contact">Contact</a></li>
           <li><a href="#terms">Terms</a></li>
           <li><a href="#privacy">Privacy</a></li>
+          <li><button class="footer-cookie" type="button" data-cookie-settings>Cookie settings</button></li>
         </ul>
       </div>
       <div>
@@ -2508,6 +2554,33 @@ button.tile:hover { border-color: var(--ink); }
       const tick = setInterval(() => { if (!btn.isConnected) done(); }, 1000);
     }, 0);
   }, true);
+
+  /* ---------- Cookie banner ---------- */
+  (function cookieBanner() {
+    const C = window.TutorEDCookies;
+    if (!C) return;
+    const bar = document.createElement("section");
+    bar.className = "cookie-bar"; bar.id = "cookie-bar"; bar.hidden = true;
+    bar.setAttribute("role", "dialog"); bar.setAttribute("aria-labelledby", "cookie-title"); bar.setAttribute("aria-describedby", "cookie-text");
+    bar.innerHTML = `<h2 id="cookie-title">Cookies on TutorED</h2>
+      <p id="cookie-text">We only store what's needed to keep you logged in. If you accept, we also load optional content from other companies, such as Google Fonts. Nothing optional loads unless you accept. See our <a href="#privacy">Privacy policy</a>.</p>
+      <p id="cookie-now" class="small" hidden></p>
+      <div class="btn-row"><button class="btn btn--primary btn--sm" type="button" data-cookie="accepted">Accept</button><button class="btn btn--outline btn--sm" type="button" data-cookie="rejected">Reject</button></div>`;
+    document.body.appendChild(bar);
+    const show = (fromSettings) => {
+      const now = $("#cookie-now"), c = C.choice();
+      now.hidden = !(fromSettings && c);
+      if (fromSettings && c) now.textContent = c === "accepted" ? "Your current choice: accepted." : "Your current choice: rejected.";
+      bar.hidden = false;
+      if (fromSettings) $("[data-cookie]", bar).focus();
+    };
+    if (!C.choice()) show(false);
+    document.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-cookie]");
+      if (b) { bar.hidden = true; C.set(b.dataset.cookie); return; }
+      if (e.target.closest("[data-cookie-settings]")) show(true);
+    });
+  })();
 
   /* ---------- Click-to-expand cards ---------- */
   $$(".expand-btn").forEach((btn) => {
