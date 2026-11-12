@@ -3911,7 +3911,7 @@ button.tile:hover { border-color: var(--ink); }
     id: null, acct: null, role: null, tab: "overview",
     tutors: [], tutorDoc: null, bookings: [], trials: [], trialOpen: null, trialAsk: null, trialDecline: null, trialEdit: null,
     month: (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })(),
-    day: todayKey(), tutorFilter: "mine", findQuery: "", findSubject: "", packSubject: "all", packType: "all", packMine: false,
+    day: todayKey(), tutorFilter: "mine", findQuery: "", findSubject: "", findPrice: "", findSort: "name", packSubject: "all", packType: "all", packMine: false,
     unsubs: [], roleUnsubs: [], loaded: false, timer: null, settingsDirty: false,
     flash: "", flashErr: false,
     chat: [], chatPeer: null, chatDraft: "", chatLoaded: false, chatErr: "", chatMobileThread: false,
@@ -4445,17 +4445,34 @@ button.tile:hover { border-color: var(--ink); }
       const q = D.findQuery.toLowerCase();
       const subjects = [...new Set(D.tutors.flatMap((t) => String(t.subjects || "").split(",").map((x) => x.trim()).filter(Boolean)))].sort((a, b) => a.localeCompare(b));
       if (D.findSubject && !subjects.includes(D.findSubject)) D.findSubject = "";
+      // Price bands (LKR per hour). "min-max"; an empty max means "and above".
+      const PRICE_BANDS = [["", "Any price"], ["0-1500", "Up to LKR 1,500"], ["0-2000", "Up to LKR 2,000"], ["0-2500", "Up to LKR 2,500"], ["0-3000", "Up to LKR 3,000"], ["0-4000", "Up to LKR 4,000"], ["4000-", "LKR 4,000 and above"]];
+      if (!PRICE_BANDS.some(([v]) => v === D.findPrice)) D.findPrice = "";
+      const rateOf = (t) => (t.rate || t.rate === 0) && !isNaN(t.rate) ? Number(t.rate) : null;
+      const [pMin, pMax] = D.findPrice ? D.findPrice.split("-").map((x) => (x === "" ? null : Number(x))) : [null, null];
+      const inBand = (t) => { if (!D.findPrice) return true; const r = rateOf(t); return r !== null && (pMin === null || r >= pMin) && (pMax === null || r <= pMax); };
+      const bySort = {
+        name: (a, b) => String(a.name || "").localeCompare(String(b.name || "")),
+        low: (a, b) => (rateOf(a) ?? Infinity) - (rateOf(b) ?? Infinity) || String(a.name || "").localeCompare(String(b.name || "")),
+        high: (a, b) => (rateOf(b) ?? -Infinity) - (rateOf(a) ?? -Infinity) || String(a.name || "").localeCompare(String(b.name || "")),
+      };
       const list = D.tutors.filter((t) => (!q || `${t.name} ${t.subjects} ${t.languages}`.toLowerCase().includes(q))
-        && (!D.findSubject || String(t.subjects || "").split(",").some((x) => x.trim() === D.findSubject)))
-        .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+        && (!D.findSubject || String(t.subjects || "").split(",").some((x) => x.trim() === D.findSubject)) && inBand(t))
+        .sort(bySort[D.findSort] || bySort.name);
+      const filtered = !!(q || D.findSubject || D.findPrice);
       const saved = savedIds();
       return `<section><div class="toolbar"><h2 class="h-card" style="margin:0">Browse tutors</h2>
           <div class="btn-row" style="flex-wrap:wrap">
             <label class="search"><span class="visually-hidden">Search tutors</span><input type="search" id="dash-find" placeholder="Search by name, subject or language" value="${esc(D.findQuery)}"></label>
             <label class="visually-hidden" for="dash-find-subject">Subject</label>
-            <select id="dash-find-subject"><option value="">All subjects</option>${subjects.map((x) => `<option value="${esc(x)}"${x === D.findSubject ? " selected" : ""}>${esc(x)}</option>`).join("")}</select></div></div>
+            <select id="dash-find-subject"><option value="">All subjects</option>${subjects.map((x) => `<option value="${esc(x)}"${x === D.findSubject ? " selected" : ""}>${esc(x)}</option>`).join("")}</select>
+            <label class="visually-hidden" for="dash-find-price">Price per hour</label>
+            <select id="dash-find-price">${PRICE_BANDS.map(([v, l]) => `<option value="${v}"${v === D.findPrice ? " selected" : ""}>${l}</option>`).join("")}</select>
+            <label class="visually-hidden" for="dash-find-sort">Sort by</label>
+            <select id="dash-find-sort">${[["name", "Sort: name"], ["low", "Price: low to high"], ["high", "Price: high to low"]].map(([v, l]) => `<option value="${v}"${v === D.findSort ? " selected" : ""}>${l}</option>`).join("")}</select>
+            ${filtered ? `<button class="link-btn" type="button" data-find-clear>Clear filters</button>` : ""}</div></div>
           <p class="card-muted small" style="margin:8px 0 0">${D.tutors.length ? `Showing ${list.length} of ${D.tutors.length} verified tutor${D.tutors.length === 1 ? "" : "s"}. Tap Book to pick a time, or Add to my tutors to keep them handy.` : ""}</p>
-          ${list.length ? `<div class="grid grid-3" style="margin-top:16px">${list.map((t) => tutorCard(t, saved.includes(t.id))).join("")}</div>` : `<div class="card" style="margin-top:16px"><p class="empty">${D.tutors.length ? "No tutors match. Try a different search or subject." : "No verified tutors yet. Tutors appear here once an admin approves them."}</p></div>`}</section>
+          ${list.length ? `<div class="grid grid-3" style="margin-top:16px">${list.map((t) => tutorCard(t, saved.includes(t.id))).join("")}</div>` : `<div class="card" style="margin-top:16px"><p class="empty">${D.tutors.length ? `No tutors match${D.findPrice ? " in that price range" : ""}. Try a different search, subject or price.` : "No verified tutors yet. Tutors appear here once an admin approves them."}</p></div>`}</section>
         <p class="form-msg" id="dash-flash" role="status" aria-live="polite"></p>`;
     },
 
@@ -5365,6 +5382,7 @@ button.tile:hover { border-color: var(--ink); }
       if (d.removeSeries) { t.disabled = true; return run(() => removeSeries(d.removeSeries)); }
       if (d.trialOpen) { D.trialOpen = d.trialOpen; D.flash = ""; render(); requestAnimationFrame(() => { const f = $(`[data-trial-request="${d.trialOpen}"] select`); if (f) f.focus(); }); return; }
       if (d.trialOpenNo) { D.trialOpen = null; return render(); }
+      if (t.hasAttribute("data-find-clear")) { D.findQuery = ""; D.findSubject = ""; D.findPrice = ""; return render(); }
       if (d.trialCancel) { t.disabled = true; return run(() => cancelTrial(d.trialCancel)); }
       if (d.trialAccept) { t.disabled = true; t.textContent = "Booking…"; return run(() => acceptTrial(d.trialAccept)); }
       if (d.trialAsk) { D.trialAsk = d.trialAsk; render(); requestAnimationFrame(() => { const f = $(`#ta-note-${d.trialAsk}`); if (f) f.focus(); }); return; }
@@ -5404,6 +5422,8 @@ button.tile:hover { border-color: var(--ink); }
     root.addEventListener("change", (e) => {
       if (e.target.id === "dash-tutor-filter") { D.tutorFilter = e.target.value; D.flash = ""; render(); }
       if (e.target.id === "dash-find-subject") { D.findSubject = e.target.value; D.flash = ""; render(); }
+      if (e.target.id === "dash-find-price") { D.findPrice = e.target.value; D.flash = ""; render(); }
+      if (e.target.id === "dash-find-sort") { D.findSort = e.target.value; render(); }
       if (e.target.id === "pack-mine") { D.packMine = e.target.checked; render(); }
       if (e.target.id === "ds-photo") {
         const file = e.target.files && e.target.files[0];
