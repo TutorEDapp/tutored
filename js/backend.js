@@ -406,6 +406,33 @@
     },
   };
 
+  /* ---------- Full account deletion, and accepting a request to move a lesson ---------- */
+  window.TutorEDExtra = {
+    async deleteAccount() {
+      await sessionReady;
+      const me = uid();
+      if (!me) throw new Error("Sign in first.");
+      // Best effort: remove this person's own uploaded documents and profile photo.
+      for (const bucket of [BUCKET, "avatars"]) {
+        try {
+          const { data } = await sb.storage.from(bucket).list(me, { limit: 200 });
+          const paths = (data || []).filter((f) => f && f.name).map((f) => me + "/" + f.name);
+          if (paths.length) await sb.storage.from(bucket).remove(paths);
+        } catch (e) {}
+      }
+      const { error } = await sb.rpc("delete_my_account");
+      if (error) throw nice(error);
+      try { await sb.auth.signOut(); } catch (e) {}
+    },
+    async rescheduleAccept(id) {
+      await sessionReady;
+      const { data, error } = await sb.rpc("reschedule_accept", { p_id: id });
+      if (error) throw nice(error);
+      poke("bookings");
+      return data;
+    },
+  };
+
   window.TutorEDHosted = true;
   window.claude = { use: async (name) => ({ db, user, assets })[name] || null };
 })();
