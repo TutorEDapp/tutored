@@ -404,6 +404,7 @@ input, select, textarea {
 textarea { min-height: 140px; resize: vertical; }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--cornflower-deep); outline-offset: 1px; border-color: var(--cornflower-deep); }
 input[type="checkbox"] { width: 20px; height: 20px; min-height: 0; accent-color: var(--cornflower-deep); }
+input[type="radio"] { width: 20px; height: 20px; min-height: 0; padding: 0; accent-color: var(--cornflower-deep); }
 .check { display: flex; gap: 10px; align-items: flex-start; font-size: var(--fs-sm); }
 .check input { margin-top: 2px; flex-shrink: 0; }
 .phone-row { display: grid; grid-template-columns: 96px 1fr; gap: 8px; }
@@ -830,7 +831,18 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 .slot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--white); }
 .slot > div:first-child { display: grid; gap: 2px; min-width: 0; }
 .slot span { font-size: 0.8125rem; color: var(--text-muted); }
-.slot-book { display: flex; gap: 8px; align-items: center; }
+.slot-book { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.slot--series { border-color: var(--cornflower); background: var(--cornflower-soft); }
+.series-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem !important; font-weight: 600; color: var(--cornflower-deep) !important; }
+.series-tag::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.repeat-choice { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; }
+.repeat-choice legend { padding: 0; margin-bottom: 6px; }
+.repeat-opt { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; background: var(--white); }
+.repeat-opt:has(input:checked) { border-color: var(--cornflower-deep); box-shadow: 0 0 0 1px var(--cornflower-deep) inset; }
+.repeat-opt input { margin: 1px 0 0; flex: none; }
+.repeat-opt span { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.repeat-choice, .repeat-opt, .slot-form { min-width: 0; }
+.repeat-opt small { color: var(--text-muted); font-size: 0.8125rem; }
 .slot-book select { min-height: 36px; padding: 4px 10px; width: auto; max-width: 180px; font-size: 0.875rem; }
 .slot-form { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
 .slot-form .btn { justify-self: start; }
@@ -3932,6 +3944,16 @@ button.tile:hover { border-color: var(--ink); }
   const tutorById = (id) => D.tutors.find((t) => t.id === id);
   const takenKey = (tutorId, start) => `${tutorId}|${start}`;
   const takenSet = () => new Set(D.bookings.filter((b) => b.status === "confirmed").map((b) => takenKey(b.tutorId, b.start)));
+  // Monthly classes: the same time every week for 4 weeks, sharing a "series" id.
+  const weekdayOf = (iso) => new Date(iso).toLocaleDateString(undefined, { weekday: "long" });
+  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  // Open weeks of a series from this slot onward (what "Book all" books)
+  function seriesOpenFrom(tutorId, slot) {
+    const t = tutorById(tutorId), taken = takenSet();
+    if (!t || !slot.series) return [];
+    return (t.slots || []).filter((x) => x.series === slot.series && x.start >= slot.start && !isPast(x.start) && !taken.has(takenKey(tutorId, x.start)))
+      .sort((a, b) => a.start.localeCompare(b.start));
+  }
 
   // Open times a student can book, for the current tutor filter
   function openSlots() {
@@ -4060,15 +4082,16 @@ button.tile:hover { border-color: var(--ink); }
       : past ? (isStudent ? "Lesson done · tutor paid" : "Lesson done · you're paid")
       : (isStudent ? "Payment held securely until the lesson is done" : "You're paid after the lesson");
     let actions = "";
+    const laterInSeries = b.seriesId ? D.bookings.filter((x) => x.id !== b.id && x.seriesId === b.seriesId && x.studentId === b.studentId && x.tutorId === b.tutorId && x.status === "confirmed" && x.start > b.start).length : 0;
     if (!cancelled && !past && opts.actions !== false) {
       actions = `<div class="btn-row">${joinControl(b, "btn--sm btn--primary")}${started ? "" : `<button class="btn btn--sm btn--ghost danger-text" type="button" data-cancel="${esc(b.id)}">Cancel</button>`}</div>
         ${joinHint(b)}
         <div class="confirm" data-cancel-confirm="${esc(b.id)}" hidden><p><strong>Cancel this lesson?</strong> ${D.role === "tutor" ? "The student is told and refunded." : "Your tutor is told. Refunds follow the refund policy."}</p>
-          <div class="btn-row"><button class="btn btn--danger btn--sm" type="button" data-cancel-yes="${esc(b.id)}">Cancel lesson</button><button class="btn btn--outline btn--sm" type="button" data-cancel-no="${esc(b.id)}">Keep it</button></div></div>`;
+          <div class="btn-row"><button class="btn btn--danger btn--sm" type="button" data-cancel-yes="${esc(b.id)}">${laterInSeries ? "Cancel this day only" : "Cancel lesson"}</button>${laterInSeries ? `<button class="btn btn--danger btn--sm" type="button" data-cancel-series="${esc(b.id)}">Cancel all ${laterInSeries + 1} remaining</button>` : ""}<button class="btn btn--outline btn--sm" type="button" data-cancel-no="${esc(b.id)}">Keep it</button></div></div>`;
     }
     return `<li class="lesson${cancelled ? " is-cancelled" : ""}">
       <div class="lesson-when"><strong>${esc(fmtShort(b.start))}</strong><span>${esc(fmtRange(b.start, b.minutes || 60))}</span></div>
-      <div class="lesson-what"><strong>${esc(b.subject || "Lesson")}</strong><span>with ${esc(other)}</span><span class="pay-note">${esc(payNote)}</span>${cancelled ? `<span class="pill pill--rejected">Cancelled${b.cancelledBy ? " by " + esc(b.cancelledBy) : ""}</span>` : past ? `<span class="pill pill--resolved">Done</span>` : started ? `<span class="pill pill--approved">In progress</span>` : `<span class="pill pill--approved">Confirmed</span>`}</div>
+      <div class="lesson-what"><strong>${esc(b.subject || "Lesson")}</strong><span>with ${esc(other)}</span>${b.seriesId && !cancelled ? `<span class="series-tag">Monthly class · every ${esc(weekdayOf(b.start))}</span>` : ""}<span class="pay-note">${esc(payNote)}</span>${cancelled ? `<span class="pill pill--rejected">Cancelled${b.cancelledBy ? " by " + esc(b.cancelledBy) : ""}</span>` : past ? `<span class="pill pill--resolved">Done</span>` : started ? `<span class="pill pill--approved">In progress</span>` : `<span class="pill pill--approved">Confirmed</span>`}</div>
       ${actions ? `<div class="lesson-actions">${actions}</div>` : ""}</li>`;
   }
 
@@ -4160,9 +4183,15 @@ button.tile:hover { border-color: var(--ink); }
             <p class="section-label">Open times to book</p>
             ${D.day < todayKey() ? `<p class="empty">This day has passed.</p>` : dayOpen.length ? `<ul class="slots">${dayOpen.map((s) => {
               const subs = String(s.tutor.subjects || "Lesson").split(",").map((x) => x.trim()).filter(Boolean);
-              return `<li class="slot"><div><strong>${esc(fmtRange(s.start, s.minutes || 60))}</strong><span>${esc(s.tutor.name)} · ${esc(lkr(s.tutor.rate))}${s.tutor.rate ? "/hr" : ""}</span></div>
+              const wk = s.series ? seriesOpenFrom(s.tutorId, s) : [];
+              const monthly = wk.length > 1;
+              const total = s.tutor.rate ? Math.round(s.tutor.rate * ((s.minutes || 60) / 60) * wk.length) : 0;
+              return `<li class="slot${monthly ? " slot--series" : ""}"><div><strong>${esc(fmtRange(s.start, s.minutes || 60))}</strong><span>${esc(s.tutor.name)} · ${esc(lkr(s.tutor.rate))}${s.tutor.rate ? "/hr" : ""}</span>
+                ${monthly ? `<span class="series-tag">Monthly class · every ${esc(weekdayOf(s.start))} · ${plural(wk.length, "week")} left</span>` : ""}</div>
                 <div class="slot-book"><label class="visually-hidden" for="sub-${esc(s.id)}">Subject</label><select id="sub-${esc(s.id)}">${subs.map((x) => `<option>${esc(x)}</option>`).join("")}</select>
-                <button class="btn btn--sm btn--primary" type="button" data-book="${esc(s.tutorId)}|${esc(s.id)}">Book</button></div></li>`;
+                ${monthly ? `<button class="btn btn--sm btn--primary" type="button" data-book-month="${esc(s.tutorId)}|${esc(s.id)}">Book all ${wk.length} weeks${total ? ` · ${esc(lkr(total))}` : ""}</button>
+                <button class="btn btn--sm btn--outline" type="button" data-book="${esc(s.tutorId)}|${esc(s.id)}">Just this day</button>`
+                : `<button class="btn btn--sm btn--primary" type="button" data-book="${esc(s.tutorId)}|${esc(s.id)}">Book</button>`}</div></li>`;
             }).join("")}</ul>` : `<p class="empty">No open times on this day${D.tutorFilter === "mine" ? " from your tutors" : ""}. Days marked "open" on the calendar have times you can book.</p>`}
             <p class="form-msg" id="dash-flash" role="status" aria-live="polite"></p>
           </div></div>`;
@@ -4468,14 +4497,18 @@ button.tile:hover { border-color: var(--ink); }
             ${dayLessons.length ? `<ul class="lessons">${dayLessons.map((b) => lessonItem(b)).join("")}</ul>` : `<p class="empty">No lessons on this day.</p>`}
             ${dueSection()}
             <p class="section-label">Your open times</p>
-            ${dayOpen.length ? `<ul class="slots">${dayOpen.map((s) => `<li class="slot"><div><strong>${esc(fmtRange(s.start, s.minutes || 60))}</strong><span>Open for booking</span></div><button class="btn btn--sm btn--ghost danger-text" type="button" data-remove-slot="${esc(s.id)}">Remove</button></li>`).join("")}</ul>` : `<p class="empty">No open times on this day.</p>`}
+            ${dayOpen.length ? `<ul class="slots">${dayOpen.map((s) => `<li class="slot${s.series ? " slot--series" : ""}"><div><strong>${esc(fmtRange(s.start, s.minutes || 60))}</strong><span>Open for booking</span>${s.series ? `<span class="series-tag">Monthly class · every ${esc(weekdayOf(s.start))}${s.week && s.weeks ? ` · week ${s.week} of ${s.weeks}` : ""}</span>` : ""}</div>
+              <div class="btn-row"><button class="btn btn--sm btn--ghost danger-text" type="button" data-remove-slot="${esc(s.id)}">${s.series ? "Remove this day" : "Remove"}</button>${s.series ? `<button class="btn btn--sm btn--ghost danger-text" type="button" data-remove-series="${esc(s.series)}">Remove whole month</button>` : ""}</div></li>`).join("")}</ul>` : `<p class="empty">No open times on this day.</p>`}
             ${past ? `<p class="empty">You can't add times to a past day.</p>` : `<form class="slot-form" id="slot-form" novalidate>
               <p class="section-label">Add an open time</p>
-              <div class="form-grid form-grid--3">
+              <div class="form-grid">
                 <div class="field"><label for="sf-time">Start</label><input id="sf-time" type="time" value="16:00" step="900" required></div>
                 <div class="field"><label for="sf-len">Length</label><select id="sf-len"><option value="45">45 min</option><option value="60" selected>1 hour</option><option value="90">1.5 hours</option><option value="120">2 hours</option></select></div>
-                <div class="field"><label for="sf-rep">Repeat</label><select id="sf-rep"><option value="1">Just this day</option><option value="4">Weekly, 4 weeks</option><option value="8">Weekly, 8 weeks</option></select></div>
               </div>
+              <fieldset class="repeat-choice"><legend class="section-label">How often?</legend>
+                <label class="repeat-opt"><input type="radio" name="sf-rep" value="once" checked><span><strong>One time</strong><small>Only on ${esc(fmtLongDay(D.day))}</small></span></label>
+                <label class="repeat-opt"><input type="radio" name="sf-rep" value="month"><span><strong>Every ${esc(fromKey(D.day).toLocaleDateString(undefined, { weekday: "long" }))} for a month</strong><small>4 weekly classes at the same time. Students can book all 4 at once.</small></span></label>
+              </fieldset>
               <button class="btn btn--primary btn--sm" type="submit">Add open time</button></form>`}
             <p class="form-msg" id="dash-flash" role="status" aria-live="polite"></p>
           </div></div>`;
@@ -4721,6 +4754,51 @@ button.tile:hover { border-color: var(--ink); }
     return `Booked ${subject} with ${t.name}, ${fmtShort(slot.start)} at ${fmtTime(slot.start)}.${linkNote} ${X.HOSTED ? "Payments aren't switched on in this trial, so nothing was charged." : "In the live site, your payment is held securely until the lesson is done. Test mode skips payment."}`;
   }
 
+  // Book every open week of a monthly class, from the chosen day onward.
+  async function bookMonth(tutorId, slotId) {
+    const t = tutorById(tutorId);
+    const slot = t && (t.slots || []).find((s) => s.id === slotId);
+    if (!slot || !slot.series) throw new Error("That class is no longer available.");
+    const sel = document.getElementById("sub-" + slotId);
+    const subject = sel ? sel.value : (t.subjects || "Lesson").split(",")[0].trim();
+    const weeks = seriesOpenFrom(tutorId, slot);
+    if (!weeks.length) throw new Error("Those times are no longer available.");
+    const made = [], missed = [];
+    for (const w of weeks) {
+      const clash = await S.db.collection("bookings").where("tutorId", "==", tutorId).where("start", "==", w.start).where("status", "==", "confirmed").limit(1).get();
+      if (!clash.empty) { missed.push(w); continue; }
+      const bref = S.db.collection("bookings").doc();
+      await bref.set(clean({
+        tutorId, tutorName: t.name, studentId: D.id, studentName: D.acct.name || acctName(), subject,
+        start: w.start, minutes: w.minutes || 60, status: "confirmed", createdAt: nowIso(), seriesId: slot.series,
+        test: S.isAdmin || !!D.acct.test,
+      }));
+      made.push(bref.id);
+    }
+    if (!made.length) throw new Error("Someone just booked those times. Pick another class.");
+    let linkFails = 0;
+    if (window.TutorEDLesson) {
+      for (const id of made) { try { await window.TutorEDLesson(id, "create"); } catch (e) { linkFails++; } }
+    }
+    if (!savedIds().includes(tutorId)) await saveAcct({ savedTutors: [...savedIds(), tutorId] });
+    const booked = weeks.filter((w) => !missed.includes(w));
+    const first = booked[0], last = booked[booked.length - 1];
+    const linkNote = window.TutorEDLesson ? (linkFails ? ` ${plural(linkFails, "lesson link")} couldn't be created yet. Try again from the lesson later.` : " Google Meet links are ready, and invitations are on their way to you both.") : "";
+    return `Booked ${plural(made.length, subject + " lesson")} with ${t.name}: every ${weekdayOf(first.start)} at ${fmtTime(first.start)}, ${fmtShort(first.start)} to ${fmtShort(last.start)}.${missed.length ? ` ${plural(missed.length, "week")} had just been taken by someone else.` : ""}${linkNote} ${X.HOSTED ? "Payments aren't switched on in this trial, so nothing was charged." : ""}`.trim();
+  }
+
+  // Cancel this lesson and every later lesson booked as part of the same monthly class.
+  async function cancelSeries(id) {
+    const b = D.bookings.find((x) => x.id === id);
+    if (!b || !b.seriesId) return cancel(id);
+    const list = D.bookings.filter((x) => x.seriesId === b.seriesId && x.studentId === b.studentId && x.tutorId === b.tutorId && x.status === "confirmed" && x.start >= b.start && !isPast(x.start));
+    for (const x of list) {
+      await S.db.doc("bookings/" + x.id).update({ status: "cancelled", cancelledBy: D.role, cancelledAt: nowIso() });
+      if (window.TutorEDLesson) { try { await window.TutorEDLesson(x.id, "cancel"); } catch (e) {} }
+    }
+    return `Cancelled ${plural(list.length, "lesson")} of this monthly class.`;
+  }
+
   async function cancel(id) {
     const b = D.bookings.find((x) => x.id === id);
     if (!b) return;
@@ -4733,7 +4811,10 @@ button.tile:hover { border-color: var(--ink); }
     const time = $("#sf-time", form).value;
     if (!time) throw new Error("Choose a start time.");
     const minutes = Number($("#sf-len", form).value);
-    const reps = Number($("#sf-rep", form).value);
+    const pick = $("input[name=sf-rep]:checked", form);
+    const monthly = !!pick && pick.value === "month";
+    const reps = monthly ? 4 : 1;
+    const series = monthly ? rid() : null;
     const base = fromKey(D.day);
     const [h, m] = time.split(":").map(Number);
     const existing = (D.tutorDoc && D.tutorDoc.slots) || [];
@@ -4743,14 +4824,29 @@ button.tile:hover { border-color: var(--ink); }
       if (d.getTime() < Date.now()) continue;
       const start = d.toISOString(), end = d.getTime() + minutes * 60000;
       const overlap = existing.concat(added).some((s) => { const s0 = Date.parse(s.start), s1 = s0 + (s.minutes || 60) * 60000; return d.getTime() < s1 && end > s0; });
-      if (!overlap) added.push({ id: rid(), start, minutes });
+      if (!overlap) added.push(series ? { id: rid(), start, minutes, series, week: i + 1, weeks: reps } : { id: rid(), start, minutes });
     }
     if (!added.length) throw new Error("Those times overlap times you already have, or have already passed.");
+    if (series && added.length < 2) { added[0] = { id: added[0].id, start: added[0].start, minutes }; }
     const slots = [...existing.filter((s) => !isPast(s.start)), ...added];
     const ref = S.db.doc("tutors/" + D.id);
     if (D.tutorDoc) await ref.update({ slots, updatedAt: nowIso() });
     else await ref.set(clean({ name: D.acct.name || "Tutor", subjects: D.acct.subjects || "", rate: null, bio: "", languages: "", slots, approved: D.acct.status === "approved", test: !!D.acct.test, updatedAt: nowIso() }));
-    return `Added ${added.length} open time${added.length === 1 ? "" : "s"}.${D.acct.status === "approved" ? "" : " Students see them once you're verified."}`;
+    const notYet = D.acct.status === "approved" ? "" : " Students see them once you're verified.";
+    if (series && added.length > 1) {
+      const skipped = reps - added.length;
+      return `Added a monthly class: every ${weekdayOf(added[0].start)} at ${fmtTime(added[0].start)}, ${plural(added.length, "week")} (${fmtShort(added[0].start)} to ${fmtShort(added[added.length - 1].start)}).${skipped ? ` ${plural(skipped, "week")} skipped because ${skipped === 1 ? "it overlaps a time" : "they overlap times"} you already have.` : ""}${notYet}`;
+    }
+    return `Added ${added.length} open time${added.length === 1 ? "" : "s"}.${notYet}`;
+  }
+
+  async function removeSeries(seriesId) {
+    const taken = takenSet();
+    const all = (D.tutorDoc && D.tutorDoc.slots) || [];
+    const slots = all.filter((s) => s.series !== seriesId || taken.has(takenKey(D.id, s.start)));
+    const n = all.length - slots.length;
+    await S.db.doc("tutors/" + D.id).update({ slots, updatedAt: nowIso() });
+    return n ? `Removed ${plural(n, "open time")} from this monthly class. Lessons students already booked are kept.` : "Nothing to remove. Every week is already booked.";
   }
 
   async function removeSlot(slotId) {
@@ -4922,6 +5018,8 @@ button.tile:hover { border-color: var(--ink); }
       if (d.cancelNo) { $(`[data-cancel-confirm="${d.cancelNo}"]`).hidden = true; return; }
       if (d.cancelYes) { t.disabled = true; return run(() => cancel(d.cancelYes)); }
       if (d.book) { t.disabled = true; const [tid, sid] = d.book.split("|"); return run(() => book(tid, sid)); }
+      if (d.bookMonth) { t.disabled = true; t.textContent = "Booking…"; const [tid, sid] = d.bookMonth.split("|"); return run(() => bookMonth(tid, sid)); }
+      if (d.cancelSeries) { t.disabled = true; return run(() => cancelSeries(d.cancelSeries)); }
       if (d.bookWith) {
         D.tutorFilter = d.bookWith; D.tab = "calendar";
         const t0 = tutorById(d.bookWith), nx = t0 && nextOpenFor(t0);
@@ -4941,6 +5039,7 @@ button.tile:hover { border-color: var(--ink); }
         const n = $(`[data-pack-note="${d.packDownload}"]`); if (n) n.hidden = !n.hidden; return;
       }
       if (d.removeSlot) { t.disabled = true; return run(() => removeSlot(d.removeSlot)); }
+      if (d.removeSeries) { t.disabled = true; return run(() => removeSeries(d.removeSeries)); }
       if (d.student) { D.tab = "students"; D.student = d.student; D.workDraft = { title: "", kind: "homework", due: "", note: "" }; D.flash = ""; render(); return window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" }); }
       if (t.hasAttribute("data-student-back")) { D.student = null; D.flash = ""; return render(); }
       if (d.workFile) return openWorkFile(d.workFile).catch((err) => flash(friendlyError(err).message, true));
