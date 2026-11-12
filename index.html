@@ -411,6 +411,20 @@ input[type="radio"] { width: 20px; height: 20px; min-height: 0; padding: 0; acce
 .form-msg { font-size: var(--fs-sm); margin: 0; min-height: 1.4em; }
 .form-msg.ok { color: var(--success); }
 .form-msg.err { color: var(--error); }
+.trials { display: grid; gap: 10px; }
+.trial { border: 1px solid var(--cornflower); background: var(--cornflower-soft); border-radius: 12px; padding: 12px 14px; display: grid; gap: 8px; }
+.trial-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; align-items: baseline; }
+.trial-top strong { font-size: 1rem; }
+.trial p { margin: 0; font-size: 0.875rem; color: var(--text-muted); }
+.trial .when { color: var(--text); font-weight: 600; font-size: 0.9375rem; }
+.trial-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.trial-form .field { margin: 0; min-width: 0; }
+.trial-form input, .trial-form select { min-height: 38px; padding: 4px 10px; font-size: 0.875rem; width: auto; max-width: 100%; }
+.trial-form textarea { min-height: 60px; font-size: 0.875rem; }
+.trial-form .grow { flex: 1 1 220px; }
+.trial-ask { display: grid; gap: 8px; border-top: 1px dashed var(--line); padding-top: 10px; margin-top: 2px; }
+.tag--trial { background: #e3f3ea; color: var(--success); }
+.trial-note { font-size: 0.8125rem; color: var(--cornflower-deep); font-weight: 600; margin: 0; }
 .file-picked { display: block; margin-top: 6px; font-size: 0.8125rem; font-weight: 600; color: var(--success); overflow-wrap: anywhere; }
 .file-picked::before { content: "\2713  "; }
 .btn.is-busy { cursor: progress; opacity: 1 !important; gap: 8px; }
@@ -3895,7 +3909,7 @@ button.tile:hover { border-color: var(--ink); }
   /* ---------- State ---------- */
   const D = {
     id: null, acct: null, role: null, tab: "overview",
-    tutors: [], tutorDoc: null, bookings: [],
+    tutors: [], tutorDoc: null, bookings: [], trials: [], trialOpen: null, trialAsk: null, trialDecline: null, trialEdit: null,
     month: (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })(),
     day: todayKey(), tutorFilter: "mine", findQuery: "", findSubject: "", packSubject: "all", packType: "all", packMine: false,
     unsubs: [], roleUnsubs: [], loaded: false, timer: null, settingsDirty: false,
@@ -3983,7 +3997,7 @@ button.tile:hover { border-color: var(--ink); }
     unsubscribe(D.unsubs); unsubscribe(D.roleUnsubs);
     clearTimeout(consentTimer);
     Object.assign(D, { consent: null, consentBusy: false, consentMsg: "", consentErr: false, consentAutoTried: false });
-    Object.assign(D, { id: null, acct: null, role: null, tab: "overview", tutors: [], tutorDoc: null, bookings: [], loaded: false, settingsDirty: false, flash: "", chat: [], chatPeer: null, chatDraft: "", chatLoaded: false, chatErr: "", chatMobileThread: false, work: [], student: null, photoBlob: null, docMsg: "", docErr: false });
+    Object.assign(D, { id: null, acct: null, role: null, tab: "overview", tutors: [], tutorDoc: null, bookings: [], trials: [], trialOpen: null, trialAsk: null, trialDecline: null, trialEdit: null, loaded: false, settingsDirty: false, flash: "", chat: [], chatPeer: null, chatDraft: "", chatLoaded: false, chatErr: "", chatMobileThread: false, work: [], student: null, photoBlob: null, docMsg: "", docErr: false });
   }
 
   function flash(text, err) { D.flash = text; D.flashErr = !!err; const el = $("#dash-flash"); if (el) { el.textContent = text; el.classList.toggle("err", !!err); } }
@@ -4038,10 +4052,15 @@ button.tile:hover { border-color: var(--ink); }
     if (D.role === "student") {
       D.roleUnsubs.push(S.db.collection("tutors").where("approved", "==", true).onSnapshot((snap) => { D.tutors = snap.docs.map((d) => ({ id: d.id, ...d.data() })); render(); }, err));
       // Confirmed lessons for everyone, so taken times disappear from the open list.
-      D.roleUnsubs.push(S.db.collection("bookings").where("status", "in", ["confirmed", "cancelled"]).limit(1000).onSnapshot((snap) => { D.bookings = snap.docs.map((d) => ({ id: d.id, ...d.data() })); render(); }, err));
+      D.roleUnsubs.push(S.db.collection("bookings").where("status", "in", ["confirmed", "cancelled"]).limit(1000).onSnapshot((snap) => { D.bookings = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((b) => b.kind !== "trial"); render(); }, err));
+      // Free trial requests this student has sent
+      D.roleUnsubs.push(S.db.collection("bookings").where("studentId", "==", D.id).limit(500).onSnapshot((snap) => { D.trials = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((b) => b.kind === "trial"); render(); }, err));
     } else if (D.role === "tutor") {
       D.roleUnsubs.push(S.db.doc("tutors/" + D.id).onSnapshot((snap) => { D.tutorDoc = snap.exists ? snap.data() : null; render(); }, err));
-      D.roleUnsubs.push(S.db.collection("bookings").where("tutorId", "==", D.id).limit(1000).onSnapshot((snap) => { D.bookings = snap.docs.map((d) => ({ id: d.id, ...d.data() })); render(); }, err));
+      D.roleUnsubs.push(S.db.collection("bookings").where("tutorId", "==", D.id).limit(1000).onSnapshot((snap) => {
+        const all = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        D.bookings = all.filter((b) => b.kind !== "trial"); D.trials = all.filter((b) => b.kind === "trial"); render();
+      }, err));
     }
     if (workOn()) D.roleUnsubs.push(S.db.collection("assignments").onSnapshot((snap) => {
       D.work = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((w) => w.studentId === D.id || w.tutorId === D.id);
@@ -4226,7 +4245,7 @@ button.tile:hover { border-color: var(--ink); }
     const past = isOver(b);
     const started = !past && isPast(b.start);
     const isStudent = D.role === "student";
-    const payNote = cancelled ? "Payment not released to the tutor"
+    const payNote = b.trial ? (cancelled ? "Free trial · cancelled" : "Free trial lesson · no charge") : cancelled ? "Payment not released to the tutor"
       : past ? (isStudent ? "Lesson done · tutor paid" : "Lesson done · you're paid")
       : (isStudent ? "Payment held securely until the lesson is done" : "You're paid after the lesson");
     let actions = "";
@@ -4239,7 +4258,7 @@ button.tile:hover { border-color: var(--ink); }
     }
     return `<li class="lesson${cancelled ? " is-cancelled" : ""}">
       <div class="lesson-when"><strong>${esc(fmtShort(b.start))}</strong><span>${esc(fmtRange(b.start, b.minutes || 60))}</span></div>
-      <div class="lesson-what"><strong>${esc(b.subject || "Lesson")}</strong><span>with ${esc(other)}</span>${b.seriesId && !cancelled ? `<span class="series-tag">Monthly class · every ${esc(weekdayOf(b.start))}</span>` : ""}<span class="pay-note">${esc(payNote)}</span>${cancelled ? `<span class="pill pill--rejected">Cancelled${b.cancelledBy ? " by " + esc(b.cancelledBy) : ""}</span>` : past ? `<span class="pill pill--resolved">Done</span>` : started ? `<span class="pill pill--approved">In progress</span>` : `<span class="pill pill--approved">Confirmed</span>`}</div>
+      <div class="lesson-what"><strong>${esc(b.subject || "Lesson")}</strong><span>with ${esc(other)}</span>${b.trial && !cancelled ? `<span class="tag tag--trial">Free trial · ${TRIAL_MIN} min</span>` : ""}${b.seriesId && !cancelled ? `<span class="series-tag">Monthly class · every ${esc(weekdayOf(b.start))}</span>` : ""}<span class="pay-note">${esc(payNote)}</span>${cancelled ? `<span class="pill pill--rejected">Cancelled${b.cancelledBy ? " by " + esc(b.cancelledBy) : ""}</span>` : past ? `<span class="pill pill--resolved">Done</span>` : started ? `<span class="pill pill--approved">In progress</span>` : `<span class="pill pill--approved">Confirmed</span>`}</div>
       ${actions ? `<div class="lesson-actions">${actions}</div>` : ""}</li>`;
   }
 
@@ -4247,6 +4266,73 @@ button.tile:hover { border-color: var(--ink); }
     const cls = `tile${warn === "alert" ? " tile--alert" : warn ? " tile--warn" : ""}`;
     const inner = `<span class="tile-num">${n}</span><span class="tile-label">${esc(label)}</span>`;
     return go ? `<button type="button" class="${cls}" data-go-tab="${go}">${inner}<span class="tile-go">Open ›</span></button>` : `<div class="${cls}">${inner}</div>`;
+  }
+
+  /* ---------- Free 30-minute trial lessons (one per student and tutor) ---------- */
+  const TRIAL_MIN = 30;
+  const trialOpenStates = ["requested", "proposed"];
+  const activeTrial = (tutorId) => D.trials.find((r) => r.tutorId === tutorId && r.studentId === D.id && trialOpenStates.includes(r.trialStatus));
+  // A student can ask a tutor for a free trial if they've never had a lesson with them and nothing is pending.
+  const canTrial = (tutorId) => D.role === "student" && !activeTrial(tutorId)
+    && !D.bookings.some((b) => b.tutorId === tutorId && b.studentId === D.id && b.status === "confirmed");
+  const fmtWhen = (iso, min) => `${fmtShort(iso)}, ${fmtRange(iso, min || TRIAL_MIN)}`;
+  function trialsCard(withFlash) {
+    const week = Date.now() - 7 * 864e5;
+    const list = D.trials.filter((r) => trialOpenStates.includes(r.trialStatus)
+      || (D.role === "student" && r.trialStatus === "declined" && !r.dismissed && Date.parse(r.updatedAt || r.createdAt || 0) > week))
+      .sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
+    if (!list.length) return withFlash && D.flash ? `<p class="form-msg" id="dash-flash" role="status" aria-live="polite"></p>` : "";
+    const isTutor = D.role === "tutor";
+    const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return keyOfIso(d.toISOString()); })();
+    const defDay = D.tab === "calendar" && D.day > todayKey() ? D.day : tomorrow;
+    const lastAsk = (r) => [...(r.history || [])].reverse().find((h) => h.event === "Asked for another time");
+    const item = (r) => {
+      const who = isTutor ? r.studentName || "A student" : r.tutorName || "Your tutor";
+      const p = r.proposal && r.proposal.start ? r.proposal : null;
+      const pPast = p && isPast(p.start);
+      const ask = lastAsk(r);
+      let body = "", actions = "";
+      if (isTutor) {
+        const form = (label) => `<form class="trial-form" data-trial-propose="${esc(r.id)}" novalidate>
+            <div class="field"><label for="tp-date-${esc(r.id)}">Day</label><input id="tp-date-${esc(r.id)}" type="date" min="${esc(todayKey())}" value="${esc(p && !pPast ? keyOfIso(p.start) : defDay)}" required></div>
+            <div class="field"><label for="tp-time-${esc(r.id)}">Start</label><input id="tp-time-${esc(r.id)}" type="time" step="900" value="${esc(p && !pPast ? new Date(p.start).toTimeString().slice(0, 5) : "16:00")}" required></div>
+            <button class="btn btn--sm btn--primary" type="submit">${label}</button></form>`;
+        const decline = D.trialDecline === r.id
+          ? `<form class="trial-ask" data-trial-decline-form="${esc(r.id)}" novalidate><div class="field"><label for="td-why-${esc(r.id)}">Reason (the student sees this)</label><input id="td-why-${esc(r.id)}" maxlength="200" placeholder="e.g. I'm fully booked this month" required></div>
+              <div class="btn-row"><button class="btn btn--sm btn--danger" type="submit">Decline request</button><button class="btn btn--sm btn--outline" type="button" data-trial-decline-no="${esc(r.id)}">Keep it</button></div></form>`
+          : `<div class="btn-row"><button class="link-btn danger-text" type="button" data-trial-decline="${esc(r.id)}">Decline request</button></div>`;
+        if (r.trialStatus === "requested") {
+          body = `<p>${esc(who)} would like a free ${TRIAL_MIN}-minute trial lesson${r.subject ? " in " + esc(r.subject) : ""}. Pick a day and time you're free.</p>
+            ${r.note ? `<p>“${esc(r.note)}”</p>` : ""}${ask ? `<p class="trial-note">Asked for another time${ask.note ? ": “" + esc(ask.note) + "”" : ""}</p>` : ""}`;
+          actions = form("Offer this time") + decline;
+        } else {
+          body = `<p class="when">You offered ${esc(fmtWhen(p.start))}</p><p>${pPast ? "That time has passed. Offer a new one." : `Waiting for ${esc(who)} to accept.`}</p>`;
+          actions = D.trialEdit === r.id || pPast ? form("Send new time") + decline
+            : D.trialDecline === r.id ? decline
+            : `<div class="btn-row"><button class="btn btn--sm btn--outline" type="button" data-trial-edit="${esc(r.id)}">Change time</button><button class="link-btn danger-text" type="button" data-trial-decline="${esc(r.id)}">Decline request</button></div>`;
+        }
+      } else {
+        if (r.trialStatus === "requested") {
+          body = `<p>Waiting for ${esc(who)} to pick a time${ask ? " (you asked for another time)" : ""}.</p>`;
+          actions = `<div class="btn-row"><button class="link-btn danger-text" type="button" data-trial-cancel="${esc(r.id)}">Cancel request</button></div>`;
+        } else if (r.trialStatus === "proposed") {
+          body = `<p class="when">${esc(who)} offered ${esc(fmtWhen(p.start))}</p><p>${pPast ? "That time has passed. Ask for another time." : "Accept it to book your free lesson, or ask for another time."}</p>`;
+          const askForm = D.trialAsk === r.id || pPast
+            ? `<form class="trial-ask" data-trial-ask-form="${esc(r.id)}" novalidate><div class="field"><label for="ta-note-${esc(r.id)}">When suits you? (optional)</label><input id="ta-note-${esc(r.id)}" maxlength="200" placeholder="e.g. Weekdays after 5 pm"></div>
+                <div class="btn-row"><button class="btn btn--sm btn--primary" type="submit">Ask for another time</button>${pPast ? "" : `<button class="btn btn--sm btn--outline" type="button" data-trial-ask-no="${esc(r.id)}">Back</button>`}</div></form>`
+            : "";
+          actions = pPast ? askForm : `<div class="btn-row"><button class="btn btn--sm btn--primary" type="button" data-trial-accept="${esc(r.id)}">Accept this time</button>${D.trialAsk === r.id ? "" : `<button class="btn btn--sm btn--outline" type="button" data-trial-ask="${esc(r.id)}">Ask for another time</button>`}</div>${askForm}`;
+        } else {
+          body = `<p>${esc(who)} can't take this trial${r.declineReason ? ": “" + esc(r.declineReason) + "”" : "."} Your free trial isn't used up. You can ask another tutor.</p>`;
+          actions = `<div class="btn-row"><button class="btn btn--sm btn--outline" type="button" data-go-tab="browse">Browse tutors</button><button class="link-btn" type="button" data-trial-dismiss="${esc(r.id)}">Dismiss</button></div>`;
+        }
+      }
+      const label = r.trialStatus === "requested" ? (isTutor ? "New request" : "Request sent") : r.trialStatus === "proposed" ? (isTutor ? "Time offered" : "Time offered · your answer needed") : "Declined";
+      return `<li class="trial"><div class="trial-top"><strong>Free trial · ${esc(who)}</strong><span class="tag tag--trial">${esc(label)}</span></div>${body}${actions}</li>`;
+    };
+    return `<div class="card"><div class="card-head"><h2 class="h-card">Free trial lessons</h2></div>
+      <ul class="trials" style="list-style:none;margin:0;padding:0">${list.map(item).join("")}</ul>
+      ${withFlash ? `<p class="form-msg" id="dash-flash" role="status" aria-live="polite"></p>` : ""}</div>`;
   }
 
   function nextLessonCard() {
@@ -4300,7 +4386,7 @@ button.tile:hover { border-color: var(--ink); }
     overview() {
       const up = upcoming();
       const packs = (D.acct.packs || []).length;
-      return `${nextLessonCard()}
+      return `${trialsCard(true)}${nextLessonCard()}
         <div class="tiles">${tile(up.length, "Upcoming lessons", false, "calendar")}${tile(savedIds().length, "My tutors", false, "tutors")}${tile(packs, "Study packs", false, "packs")}${tile(dueCount(), "Assignments due", dueCount() ? "alert" : false, "assignments")}${tile(myLessons().filter((b) => b.status === "confirmed" && isOver(b)).length, "Lessons done")}</div>
         <div class="admin-cols">
           <div class="card"><div class="card-head"><h2 class="h-card">Coming up</h2><button class="link-btn" type="button" data-go-tab="calendar">Open calendar</button></div>
@@ -4320,7 +4406,7 @@ button.tile:hover { border-color: var(--ink); }
       const dayLessons = myLessons().filter((b) => keyOfIso(b.start) === D.day);
       const dayOpen = open.filter((s) => keyOfIso(s.start) === D.day);
       const opts = [["mine", "My tutors"], ["all", "All verified tutors"], ...D.tutors.map((t) => [t.id, t.name])];
-      return `<div class="cal-toolbar"><label class="field inline-field"><span>Show open times from</span>
+      return `${trialsCard()}<div class="cal-toolbar"><label class="field inline-field"><span>Show open times from</span>
           <select id="dash-tutor-filter">${opts.map(([v, l]) => `<option value="${esc(v)}"${v === D.tutorFilter ? " selected" : ""}>${esc(l)}</option>`).join("")}</select></label>
           ${D.tutorFilter === "mine" && !savedIds().length ? `<p class="card-muted small">Add tutors in <button class="link-btn" type="button" data-go-tab="tutors">My tutors</button> to see their open times.</p>` : ""}</div>
         <div class="cal-layout">${calendarHtml(markers)}
@@ -4622,8 +4708,8 @@ button.tile:hover { border-color: var(--ink); }
       const students = new Set(myLessons().filter((b) => b.status === "confirmed").map((b) => b.studentId)).size;
       const rate = D.tutorDoc && D.tutorDoc.rate;
       const now = new Date();
-      const hoursMonth = myLessons().filter((b) => b.status === "confirmed" && new Date(b.start).getMonth() === now.getMonth() && new Date(b.start).getFullYear() === now.getFullYear()).reduce((h, b) => h + (b.minutes || 60) / 60, 0);
-      return `${verifyBanner()}${profileBanner()}${nextLessonCard()}
+      const hoursMonth = myLessons().filter((b) => b.status === "confirmed" && !b.trial && new Date(b.start).getMonth() === now.getMonth() && new Date(b.start).getFullYear() === now.getFullYear()).reduce((h, b) => h + (b.minutes || 60) / 60, 0);
+      return `${verifyBanner()}${profileBanner()}${trialsCard(true)}${nextLessonCard()}
         <div class="tiles">${tile(up.length, "Upcoming lessons", false, "calendar")}${tile(openWeek, "Open times this week", openWeek === 0, "calendar")}${tile(students, "Students", false, "students")}${tile(toMark(), "Homework to mark", toMark() ? "alert" : false, "students")}${tile(rate ? lkr(Math.round(rate * hoursMonth * 0.9)) : "—", rate ? "Your earnings this month (after TutorED's 10%)" : "Set your rate to see earnings")}</div>
         <div class="card"><div class="card-head"><h2 class="h-card">Coming up</h2><button class="link-btn" type="button" data-go-tab="calendar">Open calendar</button></div>
           ${up.length ? `<ul class="lessons">${up.slice(0, 5).map((b) => lessonItem(b, { actions: false })).join("")}</ul>` : `<p class="empty">No lessons booked yet.</p>`}</div>`;
@@ -4639,7 +4725,7 @@ button.tile:hover { border-color: var(--ink); }
       const dayLessons = myLessons().filter((b) => keyOfIso(b.start) === D.day);
       const dayOpen = open.filter((s) => keyOfIso(s.start) === D.day);
       const past = D.day < todayKey();
-      return `${verifyBanner()}${profileBanner()}<div class="cal-layout">${calendarHtml(markers)}
+      return `${verifyBanner()}${profileBanner()}${trialsCard()}<div class="cal-layout">${calendarHtml(markers)}
           <div class="card day-panel"><h2 class="h-card">${esc(fmtLongDay(D.day))}</h2>
             <p class="section-label">Booked lessons</p>
             ${dayLessons.length ? `<ul class="lessons">${dayLessons.map((b) => lessonItem(b)).join("")}</ul>` : `<p class="empty">No lessons on this day.</p>`}
@@ -4869,7 +4955,19 @@ button.tile:hover { border-color: var(--ink); }
           ${hw ? `<button class="link-btn" type="button" data-go-tab="assignments">${hw} assignment${hw === 1 ? "" : "s"} to hand in</button>` : ""}</div>` : ""}
         <footer><span class="price">${esc(lkr(t.rate))}${t.rate ? "/hr" : ""}</span><div class="btn-row">
           ${chatOn() ? `<button class="btn btn--sm btn--outline" type="button" data-chat-with="${esc(t.id)}">Contact</button>` : ""}
+          ${canTrial(t.id) && D.trialOpen !== t.id ? `<button class="btn btn--sm btn--outline" type="button" data-trial-open="${esc(t.id)}">Free ${TRIAL_MIN}-min trial</button>` : ""}
           <button class="btn btn--sm btn--primary" type="button" data-book-with="${esc(t.id)}">Book</button></div></footer>
+        ${(() => {
+          const a = activeTrial(t.id);
+          if (a) return `<p class="trial-note">${a.trialStatus === "proposed" ? `Free trial: ${esc(t.name)} offered a time. <button class="link-btn" type="button" data-go-tab="overview">Answer on Overview</button>` : "Free trial requested · waiting for the tutor to pick a time"}</p>`;
+          if (D.trialOpen !== t.id || !canTrial(t.id)) return "";
+          const subs = String(t.subjects || "Lesson").split(",").map((x) => x.trim()).filter(Boolean);
+          return `<form class="trial-ask" data-trial-request="${esc(t.id)}" novalidate>
+            <p class="trial-note" style="margin:0">Your first lesson with ${esc(t.name)} can be a free ${TRIAL_MIN}-minute trial. ${esc(String(t.name || "The tutor").split(" ")[0])} will pick a time, then you accept it.</p>
+            <div class="trial-form"><div class="field"><label for="tr-sub-${esc(t.id)}">Subject</label><select id="tr-sub-${esc(t.id)}">${subs.map((x) => `<option>${esc(x)}</option>`).join("")}</select></div>
+              <div class="field grow"><label for="tr-note-${esc(t.id)}">What would you like help with? (optional)</label><input id="tr-note-${esc(t.id)}" maxlength="300" placeholder="e.g. Mechanics, weekdays after 5 pm"></div></div>
+            <div class="btn-row"><button class="btn btn--sm btn--primary" type="submit">Send trial request</button><button class="btn btn--sm btn--outline" type="button" data-trial-open-no="${esc(t.id)}">Cancel</button></div></form>`;
+        })()}
         <div class="tutor-save">${isSaved ? `<button class="link-btn" type="button" data-unsave="${esc(t.id)}">Remove from my tutors</button>` : `<button class="link-btn" type="button" data-save="${esc(t.id)}">Add to my tutors</button>`}</div></article>`;
   }
   const PANELS = { student, tutor };
@@ -4945,6 +5043,83 @@ button.tile:hover { border-color: var(--ink); }
       if (window.TutorEDLesson) { try { await window.TutorEDLesson(x.id, "cancel"); } catch (e) {} }
     }
     return `Cancelled ${plural(list.length, "lesson")} of this monthly class.`;
+  }
+
+  // ---- Free trial actions
+  const trialById = (id) => D.trials.find((r) => r.id === id);
+  const trialEvent = (r, event, note) => [...(r.history || []), clean({ at: nowIso(), by: D.role, event, note: note || undefined })];
+  async function requestTrial(tutorId, form) {
+    const t = tutorById(tutorId);
+    if (!t) throw new Error("That tutor isn't available.");
+    if (!canTrial(tutorId)) throw new Error("You've already had a lesson or a trial request with this tutor.");
+    const subject = ($("select", form) || {}).value || (t.subjects || "Lesson").split(",")[0].trim();
+    const note = (($("input", form) || {}).value || "").trim();
+    await S.db.collection("bookings").doc().set(clean({
+      kind: "trial", status: "request", trialStatus: "requested", tutorId, tutorName: t.name, studentId: D.id, studentName: D.acct.name || acctName(),
+      subject, note: note || undefined, minutes: TRIAL_MIN, createdAt: nowIso(), updatedAt: nowIso(),
+      history: [{ at: nowIso(), by: "student", event: "Requested" }], test: S.isAdmin || !!D.acct.test,
+    }));
+    D.trialOpen = null;
+    if (!savedIds().includes(tutorId)) await saveAcct({ savedTutors: [...savedIds(), tutorId] });
+    return `Free trial request sent to ${t.name}. They'll pick a time, and you'll see it on your Overview to accept.`;
+  }
+  async function proposeTrial(id, form) {
+    const r = trialById(id);
+    if (!r) throw new Error("That request is no longer available.");
+    const day = $("input[type=date]", form).value, time = $("input[type=time]", form).value;
+    if (!day || !time) throw new Error("Choose a day and a start time.");
+    const [h, m] = time.split(":").map(Number);
+    const d = fromKey(day); d.setHours(h, m, 0, 0);
+    if (d.getTime() < Date.now() + 15 * 60000) throw new Error("Pick a time in the future.");
+    const s0 = d.getTime(), s1 = s0 + TRIAL_MIN * 60000;
+    const hit = (start, min) => { const a = Date.parse(start), b = a + (min || 60) * 60000; return s0 < b && s1 > a; };
+    if (D.bookings.some((b) => b.status === "confirmed" && hit(b.start, b.minutes))) throw new Error("You already have a lesson at that time. Pick another time.");
+    if (((D.tutorDoc && D.tutorDoc.slots) || []).some((x) => !isPast(x.start) && hit(x.start, x.minutes))) throw new Error("That overlaps one of your open times. Remove that open time first, or pick another time.");
+    if (D.trials.some((x) => x.id !== id && x.trialStatus === "proposed" && x.proposal && !isPast(x.proposal.start) && hit(x.proposal.start, TRIAL_MIN))) throw new Error("You've offered that time to another student. Pick another time.");
+    const start = d.toISOString();
+    await S.db.doc("bookings/" + id).update(clean({ trialStatus: "proposed", proposal: { start, minutes: TRIAL_MIN }, updatedAt: nowIso(), history: trialEvent(r, "Time offered " + fmtWhen(start)) }));
+    D.trialEdit = null;
+    return `Time sent to ${r.studentName || "the student"}: ${fmtWhen(start)}. It's booked once they accept.`;
+  }
+  async function declineTrial(id, form) {
+    const r = trialById(id);
+    const why = ($("input", form).value || "").trim();
+    if (why.length < 3) throw new Error("Add a short reason for the student.");
+    await S.db.doc("bookings/" + id).update(clean({ trialStatus: "declined", declineReason: why, updatedAt: nowIso(), history: trialEvent(r, "Declined by tutor", why) }));
+    D.trialDecline = null;
+    return "Request declined. The student has been told.";
+  }
+  async function acceptTrial(id) {
+    const r = trialById(id);
+    const p = r && r.proposal;
+    if (!r || r.trialStatus !== "proposed" || !p) throw new Error("That offer is no longer available.");
+    if (isPast(p.start)) throw new Error("That time has passed. Ask for another time.");
+    const clash = await S.db.collection("bookings").where("tutorId", "==", r.tutorId).where("start", "==", p.start).where("status", "==", "confirmed").limit(1).get();
+    if (!clash.empty) throw new Error("That time has just been taken. Ask for another time.");
+    const bref = S.db.collection("bookings").doc();
+    await bref.set(clean({
+      tutorId: r.tutorId, tutorName: r.tutorName, studentId: D.id, studentName: D.acct.name || acctName(), subject: r.subject || "Trial lesson",
+      start: p.start, minutes: TRIAL_MIN, status: "confirmed", trial: true, requestId: r.id, createdAt: nowIso(), test: S.isAdmin || !!D.acct.test,
+    }));
+    await S.db.doc("bookings/" + id).update(clean({ trialStatus: "accepted", bookingId: bref.id, updatedAt: nowIso(), history: trialEvent(r, "Accepted") }));
+    let linkNote = "";
+    if (window.TutorEDLesson) {
+      try { const x = await window.TutorEDLesson(bref.id, "create"); linkNote = x.meetLink ? " Your Google Meet link is ready, and an invitation is on its way to you both." : ""; }
+      catch (e) { linkNote = " The lesson link couldn't be created yet (" + (e.message || "try again later") + ")."; }
+    }
+    return `Booked your free ${TRIAL_MIN}-minute trial with ${r.tutorName}: ${fmtWhen(p.start)}.${linkNote}`;
+  }
+  async function askAnotherTime(id, form) {
+    const r = trialById(id);
+    const note = (($("input", form) || {}).value || "").trim();
+    await S.db.doc("bookings/" + id).update(clean({ trialStatus: "requested", proposal: null, updatedAt: nowIso(), history: trialEvent(r, "Asked for another time", note) }));
+    D.trialAsk = null;
+    return `Asked ${r.tutorName || "your tutor"} for another time.`;
+  }
+  async function cancelTrial(id) {
+    const r = trialById(id);
+    await S.db.doc("bookings/" + id).update(clean({ trialStatus: "cancelled", updatedAt: nowIso(), history: trialEvent(r, "Cancelled by student") }));
+    return "Trial request cancelled.";
   }
 
   async function cancel(id) {
@@ -5188,6 +5363,16 @@ button.tile:hover { border-color: var(--ink); }
       }
       if (d.removeSlot) { t.disabled = true; return run(() => removeSlot(d.removeSlot)); }
       if (d.removeSeries) { t.disabled = true; return run(() => removeSeries(d.removeSeries)); }
+      if (d.trialOpen) { D.trialOpen = d.trialOpen; D.flash = ""; render(); requestAnimationFrame(() => { const f = $(`[data-trial-request="${d.trialOpen}"] select`); if (f) f.focus(); }); return; }
+      if (d.trialOpenNo) { D.trialOpen = null; return render(); }
+      if (d.trialCancel) { t.disabled = true; return run(() => cancelTrial(d.trialCancel)); }
+      if (d.trialAccept) { t.disabled = true; t.textContent = "Booking…"; return run(() => acceptTrial(d.trialAccept)); }
+      if (d.trialAsk) { D.trialAsk = d.trialAsk; render(); requestAnimationFrame(() => { const f = $(`#ta-note-${d.trialAsk}`); if (f) f.focus(); }); return; }
+      if (d.trialAskNo) { D.trialAsk = null; return render(); }
+      if (d.trialDecline) { D.trialDecline = d.trialDecline; render(); requestAnimationFrame(() => { const f = $(`#td-why-${d.trialDecline}`); if (f) f.focus(); }); return; }
+      if (d.trialDeclineNo) { D.trialDecline = null; return render(); }
+      if (d.trialEdit) { D.trialEdit = d.trialEdit; return render(); }
+      if (d.trialDismiss) return run(() => S.db.doc("bookings/" + d.trialDismiss).update({ dismissed: true, updatedAt: nowIso() }).then(() => ""));
       if (d.student) { D.tab = "students"; D.student = d.student; D.workDraft = { title: "", kind: "homework", due: "", note: "" }; D.flash = ""; render(); return window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" }); }
       if (t.hasAttribute("data-student-back")) { D.student = null; D.flash = ""; return render(); }
       if (d.workFile) return openWorkFile(d.workFile).catch((err) => flash(friendlyError(err).message, true));
@@ -5253,6 +5438,12 @@ button.tile:hover { border-color: var(--ink); }
       e.preventDefault();
       if (f.id === "consent-change") return changeParentEmail(f);
       if (f.id === "slot-form") return run(() => addSlots(f));
+      const fb = $("button[type=submit]", f);
+      const busy = () => { if (fb) fb.disabled = true; };
+      if (f.dataset.trialRequest) { busy(); return run(() => requestTrial(f.dataset.trialRequest, f)); }
+      if (f.dataset.trialPropose) { busy(); return run(() => proposeTrial(f.dataset.trialPropose, f)); }
+      if (f.dataset.trialDeclineForm) { busy(); return run(() => declineTrial(f.dataset.trialDeclineForm, f)); }
+      if (f.dataset.trialAskForm) { busy(); return run(() => askAnotherTime(f.dataset.trialAskForm, f)); }
       if (f.id === "doc-form") {
         const b = $("button[type=submit]", f), m = $("#doc-msg");
         if (b) b.disabled = true;
