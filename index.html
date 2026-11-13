@@ -451,6 +451,27 @@ input[type="radio"] { width: 20px; height: 20px; min-height: 0; padding: 0; acce
 .form-msg { font-size: var(--fs-sm); margin: 0; min-height: 1.4em; }
 .form-msg.ok { color: var(--success); }
 .form-msg.err { color: var(--error); }
+/* ---- First-time guided tour ---- */
+.tour-block { position: fixed; inset: 0; z-index: 4000; background: transparent; }
+.tour-spot { position: fixed; z-index: 4001; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(20, 22, 31, 0.6), 0 0 0 3px #22a565; pointer-events: none; transition: top .25s ease, left .25s ease, width .25s ease, height .25s ease; }
+.tour-spot.is-none { box-shadow: 0 0 0 9999px rgba(20, 22, 31, 0.6); width: 0 !important; height: 0 !important; }
+.tour-pop { position: fixed; z-index: 4002; width: min(360px, calc(100vw - 24px)); background: var(--white); color: var(--text); border-radius: 16px; box-shadow: 0 16px 48px rgba(20, 22, 31, 0.35); padding: 18px 18px 14px; display: grid; gap: 8px; transition: top .25s ease, left .25s ease; }
+.tour-pop h2 { font-size: 1.125rem; margin: 0; padding-right: 28px; }
+.tour-pop p { margin: 0; font-size: 0.9375rem; color: var(--text-muted); line-height: 1.5; }
+.tour-pop ul { margin: 0; padding-left: 18px; font-size: 0.9375rem; color: var(--text-muted); display: grid; gap: 4px; }
+.tour-step { font-size: 0.75rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #1f7a4d; }
+.tour-bar { height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.tour-bar i { display: block; height: 100%; background: #22a565; border-radius: 4px; transition: width .25s ease; }
+.tour-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
+.tour-foot .left { display: flex; gap: 12px; align-items: center; }
+.tour-next { background: #1f9d5b; color: #fff; border: 0; border-radius: 999px; padding: 10px 22px; font: 700 0.9375rem var(--font-body); cursor: pointer; min-height: 44px; }
+.tour-next:hover { background: #18844b; }
+.tour-next:focus-visible { outline: 3px solid #14161f; outline-offset: 2px; }
+.tour-link { background: none; border: 0; padding: 8px 0; color: var(--text-muted); font: 600 0.875rem var(--font-body); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.tour-x { position: absolute; top: 8px; right: 8px; width: 36px; height: 36px; border: 0; background: none; font-size: 1.375rem; line-height: 1; color: var(--text-muted); cursor: pointer; border-radius: 50%; }
+.tour-x:hover { background: var(--cornflower-soft); }
+@media (max-width: 640px) { .tour-pop { left: 12px !important; right: 12px; width: auto; } }
+@media (prefers-reduced-motion: reduce) { .tour-spot, .tour-pop, .tour-bar i { transition: none; } }
 .rating { color: #8a5a00; font-weight: 600; }
 .tutor-card header .avatar { flex: none; }
 .tutor-card header > div { min-width: 0; }
@@ -2323,6 +2344,7 @@ button.tile:hover { border-color: var(--ink); }
         <p class="admin-sub" id="dash-role"></p>
       </div>
       <div class="btn-row">
+        <button class="btn btn--outline btn--sm" type="button" id="dash-tour-btn" data-tour-start hidden>Show me around</button>
         <a class="btn btn--outline btn--sm" href="#admin" id="dash-admin-note" hidden>Back to admin</a>
         <button class="btn btn--ghost btn--sm" type="button" data-logout>Log out</button>
       </div>
@@ -2570,6 +2592,130 @@ button.tile:hover { border-color: var(--ink); }
       const tick = setInterval(() => { if (!btn.isConnected) done(); }, 1000);
     }, 0);
   }, true);
+
+  /* ---------- First-time guided tour (students and tutors) ----------
+     A small pop-up next to each real button, in the order people use the site.
+     Each step: tab to open, what to point at (first match that is visible), title and text. */
+  window.TutorEDTour = (function () {
+    const STEPS = {
+      student: [
+        { title: "Welcome to TutorED", html: "<p>Here's a one-minute tour of how to find a tutor, book a lesson and keep everything in one place.</p><p>You can skip it and replay it any time with <strong>Show me around</strong>.</p>" },
+        { tab: "browse", sel: ["#dash-panel .toolbar", "[data-dash-tab=browse]"], title: "1. Find a tutor", html: "<p>Search by name or subject, then narrow it down by <strong>subject</strong> and <strong>price</strong>. Every tutor here has had their ID and qualifications checked by TutorED.</p>" },
+        { tab: "browse", sel: ["#dash-panel .tutor-card", "[data-dash-tab=browse]"], title: "2. Check them out", html: "<p>Each card shows the tutor's qualifications, price and <strong>reviews from other students</strong>.</p><p>New to a tutor? Ask for a <strong>free 30-minute trial</strong> first. <strong>Add to my tutors</strong> keeps them handy.</p>" },
+        { tab: "calendar", sel: ["#dash-panel .cal", "[data-dash-tab=calendar]"], title: "3. Your calendar", html: "<p>Days marked <strong>open</strong> have times you can book. Your booked lessons and homework deadlines show here too.</p>" },
+        { tab: "calendar", sel: ["#dash-panel .day-panel", "[data-dash-tab=calendar]"], pre: () => { const b = Array.from(document.querySelectorAll("#dash-panel [data-day]")).find((x) => /open/i.test(x.textContent)); if (b) b.click(); }, title: "4. Book a lesson", html: "<p>Tap a day, pick a time and press <strong>Book</strong>. You can also:</p><ul><li>book a <strong>monthly class</strong> (the same time every week) in one go</li><li>join a <strong>group class</strong> at a lower price per student</li><li><strong>Move</strong> or cancel a lesson from here</li></ul>" },
+        { tab: "overview", sel: ["#dash-panel .card", "[data-dash-tab=overview]"], title: "5. Join your lesson", html: "<p>Your next lesson is always at the top. The <strong>Join lesson</strong> button opens Google Meet, and it switches on 10 minutes before the start. No apps or links to hunt for.</p>" },
+        { tab: "assignments", sel: ["[data-dash-tab=assignments]"], title: "6. Homework", html: "<p>Your tutor sets homework here. Upload your answers, and get them back marked with feedback.</p>" },
+        { tab: "messages", sel: ["[data-dash-tab=messages]"], title: "7. Messages", html: "<p>Ask your tutor a question between lessons. Everything stays in one place, so nothing gets lost in other apps.</p>" },
+        { tab: "packs", sel: ["[data-dash-tab=packs]"], title: "8. Study packs", html: "<p>Past papers and notes you can add to your account and open whenever you need them.</p>" },
+        { tab: "overview", title: "Why book through TutorED?", html: "<ul><li><strong>Your money is protected.</strong> You pay by local card, we hold the payment, and the tutor is paid only after the lesson.</li><li><strong>Verified tutors</strong> and honest reviews.</li><li><strong>Refunds</strong> if a lesson doesn't happen.</li><li>Lessons, homework and messages <strong>in one place</strong>.</li></ul><p>None of this applies if you arrange lessons privately. (Payments are switched off during the trial.)</p>", last: "Start exploring" },
+      ],
+      tutor: [
+        { title: "Welcome to TutorED", html: "<p>Here's a one-minute tour of how to set up your profile, open your times and teach.</p><p>You can skip it and replay it any time with <strong>Show me around</strong>.</p>" },
+        { tab: "settings", sel: ["#dash-settings .form-grid", "#dash-settings", "[data-dash-tab=settings]"], title: "1. Set up your profile", html: "<p>Add your photo, subjects, hourly rate, qualifications and a short bio. This is the card students see, so a clear photo and a friendly bio get more bookings.</p>" },
+        { tab: "settings", sel: ["#docs-card", "[data-dash-tab=settings]"], title: "2. Get verified", html: "<p>Upload your ID and proof of qualifications. Only you and TutorED can see them. Once we approve them you get the <strong>Verified</strong> badge and students can book you.</p>" },
+        { tab: "calendar", sel: ["#slot-form", "#dash-panel .day-panel", "[data-dash-tab=calendar]"], title: "3. Open your times", html: "<p>Pick a day and add the times you're free. Choose:</p><ul><li><strong>One time</strong> or <strong>every week for a month</strong></li><li><strong>One student</strong> or a <strong>group class</strong> with your own price per student</li></ul><p>Students book straight from these, so you never have to arrange times by phone.</p>" },
+        { tab: "overview", sel: ["#dash-panel .card", "[data-dash-tab=overview]"], title: "4. Requests and next lesson", html: "<p><strong>Free trial requests</strong> and requests to <strong>move a lesson</strong> appear here for you to answer. Your next lesson sits at the top with a <strong>Join lesson</strong> button for Google Meet. Calendar invitations are sent for you.</p>" },
+        { tab: "students", sel: ["[data-dash-tab=students]"], title: "5. Your students", html: "<p>Open a student to set homework, share files and mark their answers. Everything is kept per student.</p>" },
+        { tab: "messages", sel: ["[data-dash-tab=messages]"], title: "6. Messages", html: "<p>Answer questions between lessons without giving out your phone number.</p>" },
+        { tab: "overview", sel: ["#dash-panel .tiles", "[data-dash-tab=overview]"], title: "7. Your earnings", html: "<p>See your upcoming lessons, students and earnings for the month. TutorED keeps 10% and you keep the rest.</p>" },
+        { tab: "overview", title: "Why teach through TutorED?", html: "<ul><li><strong>Guaranteed payment.</strong> Students pay by card when they book. We hold it and pay you after the lesson, so no chasing fees.</li><li><strong>New students find you</strong> through search, your verified badge and reviews.</li><li><strong>No admin.</strong> Bookings, reminders, Meet links and homework are handled for you.</li></ul><p>Private arrangements lose all of this, and your reviews don't grow. (Payments are switched off during the trial.)</p>", last: "Start teaching" },
+      ],
+    };
+    let st = null;
+    const visible = (el) => !!el && el.getClientRects().length > 0 && !el.closest("[hidden]");
+    const find = (sels) => { for (const q of sels || []) { const el = document.querySelector(q); if (visible(el)) return el; } return null; };
+    function place() {
+      if (!st) return;
+      const step = st.steps[st.i], el = find(step.sel), pop = st.pop, spot = st.spot;
+      const vw = innerWidth, vh = innerHeight, narrow = vw <= 640;
+      if (!el) {
+        spot.classList.add("is-none"); spot.style.top = vh / 2 + "px"; spot.style.left = vw / 2 + "px";
+        pop.style.top = Math.max(12, (vh - pop.offsetHeight) / 2) + "px"; pop.style.left = Math.max(12, (vw - pop.offsetWidth) / 2) + "px";
+        return;
+      }
+      spot.classList.remove("is-none");
+      const r0 = el.getBoundingClientRect(), pad = 6;
+      const r = { top: Math.max(4, r0.top - pad), left: Math.max(4, r0.left - pad), right: Math.min(vw - 4, r0.right + pad), bottom: Math.min(vh - 4, r0.bottom + pad) };
+      // A tall target with no room above or below: highlight its top part and keep the pop-up clear of it.
+      { const ph0 = pop.offsetHeight, room = vh - ph0 - 26; if (r.bottom > room && r.top - 14 - ph0 < 12 && room - r.top >= 120) r.bottom = room; }
+      spot.style.top = r.top + "px"; spot.style.left = r.left + "px"; spot.style.width = Math.max(0, r.right - r.left) + "px"; spot.style.height = Math.max(0, r.bottom - r.top) + "px";
+      const ph = pop.offsetHeight, pw = pop.offsetWidth, gap = 14;
+      let top = r.bottom + gap;
+      if (top + ph > vh - 12) top = r.top - gap - ph;                       // not enough room below: go above
+      if (top < 12) {                                                        // no room either side
+        const t2 = 76;
+        if (r.bottom - (t2 + ph + 14) >= 100) { top = t2; r.top = Math.max(r.top, t2 + ph + 14); spot.style.top = r.top + "px"; spot.style.height = Math.max(0, r.bottom - r.top) + "px"; }
+        else top = Math.max(12, vh - ph - 12);
+      }
+      let left = narrow ? 12 : Math.min(Math.max(12, r.left + (r.right - r.left) / 2 - pw / 2), vw - pw - 12);
+      pop.style.top = top + "px"; pop.style.left = left + "px";
+    }
+    function show(i) {
+      st.i = i;
+      const step = st.steps[i], n = st.steps.length, last = i === n - 1;
+      if (step.tab && window.TutorEDDash) window.TutorEDDash.openTab(step.tab);
+      st.pop.innerHTML = `<button class="tour-x" type="button" data-tour="skip" aria-label="Close the tour">×</button>
+        <span class="tour-step">Step ${i + 1} of ${n}</span><div class="tour-bar" aria-hidden="true"><i style="width:${Math.round(((i + 1) / n) * 100)}%"></i></div>
+        <h2 id="tour-title">${step.title}</h2><div id="tour-text">${step.html}</div>
+        <div class="tour-foot"><div class="left">${i > 0 ? `<button class="tour-link" type="button" data-tour="back">Back</button>` : ""}${last ? "" : `<button class="tour-link" type="button" data-tour="skip">Skip tour</button>`}</div>
+          <button class="tour-next" type="button" data-tour="next">${last ? step.last || "Finish" : "Next"}</button></div>`;
+      if (step.pre) setTimeout(() => { if (st && st.i === i) { try { step.pre(); } catch (e) {} } }, 160);
+      // Wait for the tab to draw, bring the target into view, then point at it.
+      const go = (tries) => {
+        if (!st || st.i !== i) return;
+        const el = find(step.sel);
+        if (!el && step.sel && tries > 0) return setTimeout(() => go(tries - 1), 80);
+        if (el) {
+          const top0 = 84, ph = st.pop.offsetHeight;                      // keep clear of the sticky menu
+          let r = el.getBoundingClientRect();
+          if (r.left < 8 || r.right > innerWidth - 8) { el.scrollIntoView({ block: "nearest", inline: "center", behavior: "auto" }); r = el.getBoundingClientRect(); }
+          if (r.height + ph + 40 <= innerHeight - top0) {                 // room for both: target on top, pop-up under it
+            if (r.top < top0 || r.bottom + ph + 28 > innerHeight) window.scrollBy(0, r.top - top0);
+          } else if (r.top < top0 || r.top > innerHeight * 0.4) window.scrollBy(0, r.top - top0);
+        }
+        else if (!step.sel) window.scrollTo({ top: 0, behavior: "auto" });
+        requestAnimationFrame(() => { place(); const b = st && st.pop.querySelector(".tour-next"); if (b) b.focus({ preventScroll: true }); });
+      };
+      setTimeout(() => go(12), step.pre ? 420 : 60);
+    }
+    function stop(finished) {
+      if (!st) return;
+      const cb = st.onDone; clearInterval(st.timer);
+      removeEventListener("resize", place); removeEventListener("scroll", place, true); document.removeEventListener("keydown", st.key, true);
+      st.block.remove(); st.spot.remove(); st.pop.remove(); st = null;
+      if (window.TutorEDDash) window.TutorEDDash.openTab("overview");
+      window.scrollTo({ top: 0, behavior: "auto" });
+      if (cb) cb(!!finished);
+    }
+    function start(role, onDone) {
+      if (st || !STEPS[role]) return false;
+      const mk = (cls) => { const d = document.createElement("div"); d.className = cls; document.body.appendChild(d); return d; };
+      st = { steps: STEPS[role], i: 0, onDone, block: mk("tour-block"), spot: mk("tour-spot is-none"), pop: mk("tour-pop") };
+      st.pop.setAttribute("role", "dialog"); st.pop.setAttribute("aria-modal", "true"); st.pop.setAttribute("aria-labelledby", "tour-title"); st.pop.setAttribute("aria-describedby", "tour-text");
+      st.pop.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-tour]"); if (!b || !st) return;
+        if (b.dataset.tour === "skip") return stop(false);
+        if (b.dataset.tour === "back") return show(Math.max(0, st.i - 1));
+        if (st.i >= st.steps.length - 1) return stop(true);
+        show(st.i + 1);
+      });
+      st.key = (e) => {
+        if (!st) return;
+        if (e.key === "Escape") { e.preventDefault(); stop(false); }
+        else if (e.key === "ArrowRight") { e.preventDefault(); st.i >= st.steps.length - 1 ? stop(true) : show(st.i + 1); }
+        else if (e.key === "ArrowLeft" && st.i > 0) { e.preventDefault(); show(st.i - 1); }
+        else if (e.key === "Tab") { const f = Array.from(st.pop.querySelectorAll("button")); if (!f.length) return; const a = document.activeElement, first = f[0], lastB = f[f.length - 1];
+          if (!st.pop.contains(a)) { e.preventDefault(); lastB.focus(); } else if (e.shiftKey && a === first) { e.preventDefault(); lastB.focus(); } else if (!e.shiftKey && a === lastB) { e.preventDefault(); first.focus(); } }
+      };
+      document.addEventListener("keydown", st.key, true);
+      addEventListener("resize", place); addEventListener("scroll", place, true);
+      st.timer = setInterval(place, 400);            // the dashboard redraws itself; keep pointing at the right thing
+      show(0);
+      return true;
+    }
+    return { start, stop: () => stop(false), active: () => !!st, steps: STEPS };
+  })();
 
   /* ---------- Cookie banner ---------- */
   (function cookieBanner() {
@@ -4108,6 +4254,7 @@ button.tile:hover { border-color: var(--ink); }
     unsubscribe(D.unsubs); unsubscribe(D.roleUnsubs);
     clearTimeout(consentTimer);
     Object.assign(D, { consent: null, consentBusy: false, consentMsg: "", consentErr: false, consentAutoTried: false });
+    { const tb = $("#dash-tour-btn"); if (tb) tb.hidden = true; if (window.TutorEDTour && window.TutorEDTour.active()) window.TutorEDTour.stop(); D.tourChecked = false; }
     Object.assign(D, { id: null, acct: null, role: null, tab: "overview", tutors: [], tutorDoc: null, bookings: [], trials: [], trialOpen: null, trialAsk: null, trialDecline: null, trialEdit: null, reviews: [], reviewOpen: null, moveOpen: null, slotGroup: false, loaded: false, settingsDirty: false, flash: "", chat: [], chatPeer: null, chatDraft: "", chatLoaded: false, chatErr: "", chatMobileThread: false, work: [], student: null, photoBlob: null, docMsg: "", docErr: false });
   }
 
@@ -4304,6 +4451,7 @@ button.tile:hover { border-color: var(--ink); }
       $("#dash-role").innerHTML = `<span class="chip">Student account</span> <span class="pill pill--pending">Waiting for a parent's consent</span>`;
       $("#dash-admin-note").hidden = !S.isAdmin;
       if (tabsWrap) tabsWrap.hidden = true;
+      { const tb = $("#dash-tour-btn"); if (tb) tb.hidden = true; }
       const lp = $("#dash-panel"), lh = lockHtml();
       if (lp.__lock !== lh) { swapHtml(lp, lh); lp.__lock = lh; }
       return;
@@ -4330,6 +4478,12 @@ button.tile:hover { border-color: var(--ink); }
     const view = `${D.role}|${D.tab}|${D.student || ""}`;
     if (view !== touchedView) { touched.clear(); touchedView = view; }
     if (panel.innerHTML !== html) swapHtml(panel, html);
+    // First sign-in: show the guided tour once (not while an admin is looking at someone's dashboard).
+    { const tb = $("#dash-tour-btn"); if (tb) tb.hidden = false; }
+    if (!D.tourChecked && D.loaded && window.TutorEDTour && !S.isAdmin) {
+      D.tourChecked = true;
+      if (!D.acct.tourDone) setTimeout(() => { if (D.acct && !$("#dash-app").hidden && !consentLocked()) startTour(); }, 700);
+    }
     const f = $("#dash-flash"); if (f) { f.textContent = D.flash; f.classList.toggle("err", D.flashErr); }
     if (D.tab === "messages") {
       const th = $("#chat-thread"); if (th && nearBottom) th.scrollTop = th.scrollHeight;
@@ -4505,6 +4659,13 @@ button.tile:hover { border-color: var(--ink); }
     return `<div class="card"><div class="card-head"><h2 class="h-card">Free trial lessons</h2></div>
       <ul class="trials" style="list-style:none;margin:0;padding:0">${list.map(item).join("")}</ul>
       ${withFlash ? `<p class="form-msg" id="dash-flash" role="status" aria-live="polite"></p>` : ""}</div>`;
+  }
+
+  function startTour() {
+    if (!window.TutorEDTour || !D.acct || consentLocked()) return;
+    window.TutorEDTour.start(D.role === "tutor" ? "tutor" : "student", () => {
+      if (D.acct && !D.acct.tourDone && !S.isAdmin) saveAcct({ tourDone: true }).catch(() => {});
+    });
   }
 
   function nextLessonCard() {
@@ -5741,6 +5902,7 @@ button.tile:hover { border-color: var(--ink); }
   }
 
   bind();
+  document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest("[data-tour-start]")) startTour(); });
   document.addEventListener("visibilitychange", () => { if (!document.hidden && D.tab === "messages") { markThreadRead(); render(); } });
   // Re-check the clock so Join buttons switch on by themselves 10 minutes before a lesson.
   setInterval(() => { if (D.acct && !document.hidden && !$("#dash-app").hidden && D.bookings.length && !(D.tab === "settings" && D.settingsDirty)) render(); }, 20000);
